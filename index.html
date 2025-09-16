@@ -142,17 +142,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const numBlocks = 9;
   const specialties = [
-    'Surgery Clerkship',
-    'Obstetric/Gynecology Clerkship',
-    'Family Medicine Clerkship',
-    'Psychiatry Clerkship',
-    'Internal Medicine Clerkship',
-    'Emergency Medicine Clerkship',
-    'Pediatrics Clerkship',
-    'Elective'
+    'Surgery Clerkship','Obstetric/Gynecology Clerkship','Family Medicine Clerkship',
+    'Psychiatry Clerkship','Internal Medicine Clerkship','Emergency Medicine Clerkship',
+    'Pediatrics Clerkship','Elective'
   ];
 
-  // Build pre-checked filter grid
+  // Build grid
   let gridHTML = '<table class="grid-table"><thead><tr><th>Rotation</th>';
   for (let i = 1; i <= numBlocks; i++) gridHTML += `<th>${i}</th>`;
   gridHTML += '</tr></thead><tbody>';
@@ -167,14 +162,10 @@ document.addEventListener('DOMContentLoaded', () => {
   filterGridDiv.innerHTML = `<strong>Allowed Rotations (uncheck to exclude):</strong>${gridHTML}`;
 
   const specialtyColors = {
-    'Surgery Clerkship': '#9C27B0',
-    'Obstetric/Gynecology Clerkship': '#E91E63',
-    'Family Medicine Clerkship': '#4CAF50',
-    'Psychiatry Clerkship': '#795548',
-    'Internal Medicine Clerkship': '#2196F3',
-    'Emergency Medicine Clerkship': '#3F51B5',
-    'Pediatrics Clerkship': '#FF9800',
-    'Elective': '#9E9E9E'
+    'Surgery Clerkship':'#9C27B0','Obstetric/Gynecology Clerkship':'#E91E63',
+    'Family Medicine Clerkship':'#4CAF50','Psychiatry Clerkship':'#795548',
+    'Internal Medicine Clerkship':'#2196F3','Emergency Medicine Clerkship':'#3F51B5',
+    'Pediatrics Clerkship':'#FF9800','Elective':'#9E9E9E'
   };
   const colorFor = s => specialtyColors[s] || '#607D8B';
 
@@ -182,44 +173,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const choice = dropdown.value.trim();
     const mode = modeSelect.value;
 
-    // Collect unchecked (excluded) combos
+    // collect unchecked
     const excluded = {};
-    filterGridDiv.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb => {
-      const rot = cb.dataset.rotation;
-      const blk = cb.dataset.block;
-      if (!excluded[blk]) excluded[blk] = new Set();
-      excluded[blk].add(rot);
+    filterGridDiv.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb=>{
+      const rot = cb.dataset.rotation, blk = cb.dataset.block;
+      if(!excluded[blk]) excluded[blk]=new Set(); excluded[blk].add(rot);
     });
-
-    const rotationFilterActive = Object.keys(excluded).length > 0;
+    const rotationFilterActive = Object.keys(excluded).length>0;
 
     try {
       const resp = await fetch('schedules.csv');
       const text = await resp.text();
-      const parsed = Papa.parse(text, {
-        header: true,
-        skipEmptyLines: true,
-        transformHeader: h => h.replace(/^\uFEFF/, '').trim()
+      const parsed = Papa.parse(text,{
+        header:true, skipEmptyLines:true,
+        transformHeader:h=>h.replace(/^\uFEFF/,'').trim()
       });
 
+      if(!parsed.data.length){ resultDiv.textContent='CSV empty or unreadable'; return;}
+
+      // Detect actual city key dynamically
       const headers = Object.keys(parsed.data[0]);
-      const idKey = headers.find(h => h.trim().toLowerCase().includes('id')) || headers[0];
+      const cityKey = headers.find(k=>k.trim().toLowerCase().includes('city')) || 'Dominant City';
+      const idKey = headers.find(k=>k.trim().toLowerCase().includes('id')) || headers[0];
 
-      const filtered = parsed.data.filter(r => {
-        const cityMatch = choice && (r['Dominant City'] || '').trim() === choice;
-
-        let rotationAllowed = true;
-        if (rotationFilterActive) {
-          for (let i = 1; i <= numBlocks; i++) {
-            const rotation = (r[`Block ${i} Rotation`] || '').trim();
-            if (excluded[i] && excluded[i].has(rotation)) {
-              rotationAllowed = false;
-              break;
-            }
+      const filtered = parsed.data.filter(r=>{
+        const cityMatch = choice && (r[cityKey]||'').trim()===choice;
+        let rotationAllowed=true;
+        if(rotationFilterActive){
+          for(let i=1;i<=numBlocks;i++){
+            const rotation=(r[`Block ${i} Rotation`]||'').trim();
+            if(excluded[i]&&excluded[i].has(rotation)){ rotationAllowed=false; break;}
           }
         }
-
-        switch (mode) {
+        switch(mode){
           case 'city': return cityMatch;
           case 'rotation': return rotationAllowed;
           case 'and': return cityMatch && rotationAllowed;
@@ -227,32 +213,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      if (!filtered.length) { resultDiv.textContent = 'No matches found.'; return; }
+      if(!filtered.length){ resultDiv.textContent='No matches found.'; return;}
 
-      const head = Array.from({length: numBlocks}, (_, i) => `<th>Block ${i+1}</th>`).join('');
-      let html = `<table><thead><tr><th>Schedule</th>${head}</tr></thead><tbody>`;
-
-      filtered.forEach(r => {
-        const sched = (r[idKey] || '').toString().trim();
-        const cells = [];
-        for (let i = 1; i <= numBlocks; i++) {
-          const rotation = (r[`Block ${i} Rotation`] || '').trim();
-          const site = (r[`Block ${i} Site`] || '').trim();
+      const head = Array.from({length:numBlocks},(_,i)=>`<th>Block ${i+1}</th>`).join('');
+      let html=`<table><thead><tr><th>Schedule</th>${head}</tr></thead><tbody>`;
+      filtered.forEach(r=>{
+        const sched=(r[idKey]||'').toString().trim();
+        const cells=[];
+        for(let i=1;i<=numBlocks;i++){
+          const rotation=(r[`Block ${i} Rotation`]||'').trim();
+          const site=(r[`Block ${i} Site`]||'').trim();
           cells.push(
             `<td>
-               <span class="rotation" style="background-color:${colorFor(rotation)}">${rotation}</span>
-               <div class="site">${site}</div>
+              <span class="rotation" style="background-color:${colorFor(rotation)}">${rotation}</span>
+              <div class="site">${site}</div>
              </td>`
           );
         }
-        html += `<tr><td>${sched}</td>${cells.join('')}</tr>`;
+        html+=`<tr><td>${sched}</td>${cells.join('')}</tr>`;
       });
-
-      html += '</tbody></table>';
-      resultDiv.innerHTML = `<strong>Results:</strong><br>${html}`;
-    } catch (e) {
+      html+='</tbody></table>';
+      resultDiv.innerHTML=`<strong>Results:</strong><br>${html}`;
+    } catch(e){
       console.error(e);
-      resultDiv.textContent = 'Error reading CSV file.';
+      resultDiv.textContent='Error reading CSV file.';
     }
   }
 

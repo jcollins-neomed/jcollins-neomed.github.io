@@ -1,5 +1,4 @@
 <title>Jason's Lottery Helper Tool</title>
-
 <body>
   <select id="dropdown">
     <option value="">--Choose City--</option>
@@ -9,9 +8,10 @@
     <option value="Columbus">Columbus</option>
   </select>
   <button id="searchBtn">Search</button>
+
+  <div id="filterGrid"></div>
   <div id="result"></div>
 
-<!-- PapaParse -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
@@ -23,6 +23,8 @@
     border-radius: 4px; color: #fff; font-size: 0.85em;
   }
   .site { font-size: 0.8em; color: #555; }
+  .grid-table { margin-top:1em; border-collapse: collapse; }
+  .grid-table th, .grid-table td { border:1px solid #ddd; padding:4px; }
 </style>
 
 <script>
@@ -30,6 +32,33 @@ document.addEventListener('DOMContentLoaded', () => {
   const dropdown = document.getElementById('dropdown');
   const searchBtn = document.getElementById('searchBtn');
   const resultDiv = document.getElementById('result');
+  const filterGridDiv = document.getElementById('filterGrid');
+
+  const numBlocks = 9;
+  const specialties = [
+    'Surgery Clerkship',
+    'Obstetric/Gynecology Clerkship',
+    'Family Medicine Clerkship',
+    'Psychiatry Clerkship',
+    'Internal Medicine Clerkship',
+    'Emergency Medicine Clerkship',
+    'Pediatrics Clerkship',
+    'Elective'
+  ];
+
+  // Build filter grid
+  let gridHTML = '<table class="grid-table"><thead><tr><th>Rotation</th>';
+  for (let i = 1; i <= numBlocks; i++) gridHTML += `<th>${i}</th>`;
+  gridHTML += '</tr></thead><tbody>';
+  specialties.forEach(spec => {
+    gridHTML += `<tr><td>${spec}</td>`;
+    for (let i = 1; i <= numBlocks; i++) {
+      gridHTML += `<td><input type="checkbox" data-rotation="${spec}" data-block="${i}"></td>`;
+    }
+    gridHTML += '</tr>';
+  });
+  gridHTML += '</tbody></table>';
+  filterGridDiv.innerHTML = `<strong>Exclude Rotations:</strong>${gridHTML}`;
 
   const specialtyColors = {
     'Surgery Clerkship': '#9C27B0',
@@ -47,30 +76,46 @@ document.addEventListener('DOMContentLoaded', () => {
     const choice = dropdown.value.trim();
     if (!choice) { resultDiv.textContent = 'Please select a city.'; return; }
 
+    // Collect excluded combos
+    const excluded = {};
+    filterGridDiv.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+      const rot = cb.dataset.rotation;
+      const blk = cb.dataset.block;
+      if (!excluded[blk]) excluded[blk] = new Set();
+      excluded[blk].add(rot);
+    });
+
     try {
       const resp = await fetch('schedules.csv');
       const text = await resp.text();
-
       const parsed = Papa.parse(text, {
         header: true,
         skipEmptyLines: true,
         transformHeader: h => h.replace(/^\uFEFF/, '').trim()
       });
 
-      if (!parsed.data.length) { resultDiv.textContent = 'CSV is empty or unreadable.'; return; }
-
-      // Inspect headers to find the correct ID field
       const headers = Object.keys(parsed.data[0]);
       const idKey = headers.find(h => h.trim().toLowerCase().includes('id')) || headers[0];
 
       const rows = parsed.data.filter(r => (r['Dominant City'] || '').trim() === choice);
-      if (!rows.length) { resultDiv.textContent = 'No matches found.'; return; }
 
-      const numBlocks = 9;
+      // Filter out excluded rotations
+      const filtered = rows.filter(r => {
+        for (let i = 1; i <= numBlocks; i++) {
+          const rotation = (r[`Block ${i} Rotation`] || '').trim();
+          if (excluded[i] && excluded[i].has(rotation)) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      if (!filtered.length) { resultDiv.textContent = 'No matches found after filtering.'; return; }
+
       const head = Array.from({length: numBlocks}, (_, i) => `<th>Block ${i+1}</th>`).join('');
       let html = `<table><thead><tr><th>Schedule</th>${head}</tr></thead><tbody>`;
 
-      rows.forEach(r => {
+      filtered.forEach(r => {
         const sched = (r[idKey] || '').toString().trim();
         const cells = [];
         for (let i = 1; i <= numBlocks; i++) {

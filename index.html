@@ -13,17 +13,35 @@
 
 <div id="result"></div>
 
-<!-- PapaParse -->
+<!-- PapaParse for CSV parsing -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
+  table {
+    border-collapse: collapse;
+    margin-top: 1em;
+    width: 100%;
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 4px 6px;
+    text-align: center;
+    vertical-align: top;
+  }
+  th {
+    background: #f2f2f2;
+  }
   .rotation {
+    display: block;
     padding: 2px 6px;
-    margin-right: 4px;
+    margin-bottom: 2px;
     border-radius: 4px;
     color: #fff;
-    font-size: 0.9em;
-    display: inline-block;
+    font-size: 0.85em;
+  }
+  .site {
+    font-size: 0.8em;
+    color: #555;
   }
 </style>
 
@@ -33,20 +51,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchBtn = document.getElementById('searchBtn');
   const resultDiv = document.getElementById('result');
 
-  // Map specialties to colors
+  // Colors for specialties
   const specialtyColors = {
-    'Family Medicine': '#4CAF50',
-    'Internal Medicine': '#2196F3',
-    'Pediatrics': '#FF9800',
-    'Surgery': '#9C27B0',
-    'Obstetrics': '#E91E63',
-    'Psychiatry': '#795548',
-    // Add more specialties and colors as needed
+    'Surgery Clerkship': '#9C27B0',
+    'Obstetric/Gynecology Clerkship': '#E91E63',
+    'Free': '#9E9E9E',
+    'Family Medicine Clerkship': '#4CAF50',
+    'Psychiatry Clerkship': '#795548',
+    'Internal Medicine Clerkship': '#2196F3',
+    'Emergency Medicine Clerkship': '#3F51B5',
+    'Pediatrics Clerkship': '#FF9800'
   };
 
-  // Get color or fallback if not listed
-  function getColor(specialty) {
-    return specialtyColors[specialty] || '#607D8B'; // default gray-blue
+  function getColor(spec) {
+    return specialtyColors[spec] || '#607D8B';
   }
 
   async function searchCSV() {
@@ -69,25 +87,28 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      const output = matches.map(row => {
-        // Collect all rotations (adjust column names to match your CSV)
-        const rotations = [
-          row['Block 1 Rotation'],
-          row['Block 2 Rotation'],
-          row['Block 3 Rotation'],
-          row['Block 4 Rotation']
-        ]
-        .filter(Boolean) // ignore empty values
-        .map(spec => {
-          const color = getColor(spec.trim());
-          return `<span class="rotation" style="background-color:${color}">${spec}</span>`;
-        })
-        .join(' ');
+      // Table header for 9 blocks
+      const headers = Array.from({ length: 9 }, (_, i) => `<th>Block ${i+1}</th>`).join('');
+      let tableHTML = `<table><thead><tr><th>Schedule</th>${headers}</tr></thead><tbody>`;
 
-        return `<div><strong>${row['Student ID']}</strong>: ${rotations}</div>`;
-      }).join('');
+      matches.forEach((row, idx) => {
+        const blocks = [];
+        for (let i = 1; i <= 9; i++) {
+          const rotation = row[`Block ${i} Rotation`] || '';
+          const site = row[`Block ${i} Site`] || ''; // if you store hospital/site separately
+          const color = getColor(rotation.trim());
+          blocks.push(
+            `<td>
+               <span class="rotation" style="background-color:${color}">${rotation}</span>
+               <div class="site">${site}</div>
+             </td>`
+          );
+        }
+        tableHTML += `<tr><td>${idx + 1}</td>${blocks.join('')}</tr>`;
+      });
 
-      resultDiv.innerHTML = `<strong>Results:</strong><br>${output}`;
+      tableHTML += '</tbody></table>';
+      resultDiv.innerHTML = `<strong>Results:</strong><br>${tableHTML}`;
     } catch (err) {
       console.error(err);
       resultDiv.textContent = 'Error reading CSV file.';

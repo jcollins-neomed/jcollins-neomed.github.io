@@ -13,36 +13,18 @@
 
 <div id="result"></div>
 
-<!-- PapaParse for CSV parsing -->
+<!-- PapaParse -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
-  table {
-    border-collapse: collapse;
-    margin-top: 1em;
-    width: 100%;
-  }
-  th, td {
-    border: 1px solid #ccc;
-    padding: 4px 6px;
-    text-align: center;
-    vertical-align: top;
-  }
-  th {
-    background: #f2f2f2;
-  }
+  table { border-collapse: collapse; margin-top: 1em; width: 100%; }
+  th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: center; vertical-align: top; }
+  th { background: #f2f2f2; }
   .rotation {
-    display: block;
-    padding: 2px 6px;
-    margin-bottom: 2px;
-    border-radius: 4px;
-    color: #fff;
-    font-size: 0.85em;
+    display: block; padding: 2px 6px; margin-bottom: 2px;
+    border-radius: 4px; color: #fff; font-size: 0.85em;
   }
-  .site {
-    font-size: 0.8em;
-    color: #555;
-  }
+  .site { font-size: 0.8em; color: #555; }
 </style>
 
 <script>
@@ -51,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchBtn = document.getElementById('searchBtn');
   const resultDiv = document.getElementById('result');
 
-  // Match your specialties exactly
+  // Exact specialties from your CSV
   const specialtyColors = {
     'Surgery Clerkship': '#9C27B0',
     'Obstetric/Gynecology Clerkship': '#E91E63',
@@ -62,57 +44,50 @@ document.addEventListener('DOMContentLoaded', () => {
     'Emergency Medicine Clerkship': '#3F51B5',
     'Pediatrics Clerkship': '#FF9800'
   };
-
-  function getColor(spec) {
-    return specialtyColors[spec] || '#607D8B';
-  }
+  const colorFor = s => specialtyColors[s] || '#607D8B';
 
   async function searchCSV() {
     const choice = dropdown.value.trim();
-    if (!choice) {
-      resultDiv.textContent = 'Please select a city.';
-      return;
-    }
+    if (!choice) { resultDiv.textContent = 'Please select a city.'; return; }
 
     try {
-      const response = await fetch('schedules.csv');
-      const text = await response.text();
-      const parsed = Papa.parse(text, { header: true });
+      const resp = await fetch('schedules.csv');
+      const text = await resp.text();
 
-      // Filter rows by Dominant City
-      const matches = parsed.data.filter(row => row['Dominant City'] === choice);
-
-      if (!matches.length) {
-        resultDiv.textContent = 'No matches found.';
-        return;
-      }
-
-      // Adjust this number of blocks to match your CSV
-      const numBlocks = 9;
-      const headers = Array.from({ length: numBlocks }, (_, i) => `<th>Block ${i + 1}</th>`).join('');
-      let tableHTML = `<table><thead><tr><th>Schedule</th>${headers}</tr></thead><tbody>`;
-
-      matches.forEach(row => {
-        const scheduleNum = row['Student ID'] || row['Schedule']; // use your CSV's identifier column
-        const blocks = [];
-        for (let i = 1; i <= numBlocks; i++) {
-          const rotationCell = row[`Block ${i} Rotation`] || '';
-          const [rotation, site] = rotationCell.split(' - ').map(s => s.trim());
-          const color = getColor(rotation);
-          blocks.push(
-            `<td>
-              <span class="rotation" style="background-color:${color}">${rotation || ''}</span>
-              <div class="site">${site || ''}</div>
-            </td>`
-          );
-        }
-        tableHTML += `<tr><td>${scheduleNum}</td>${blocks.join('')}</tr>`;
+      const parsed = Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        // Strip BOM and whitespace from headers so 'Student ID' matches correctly
+        transformHeader: h => h.replace(/^\uFEFF/, '').trim()
       });
 
-      tableHTML += '</tbody></table>';
-      resultDiv.innerHTML = `<strong>Results:</strong><br>${tableHTML}`;
-    } catch (err) {
-      console.error(err);
+      const rows = parsed.data.filter(r => (r['Dominant City'] || '').trim() === choice);
+      if (!rows.length) { resultDiv.textContent = 'No matches found.'; return; }
+
+      const numBlocks = 9;
+      const head = Array.from({length: numBlocks}, (_, i) => `<th>Block ${i+1}</th>`).join('');
+      let html = `<table><thead><tr><th>Schedule</th>${head}</tr></thead><tbody>`;
+
+      rows.forEach(r => {
+        const sched = (r['Student ID'] || '').toString().trim(); // original number/id
+        const cells = [];
+        for (let i = 1; i <= numBlocks; i++) {
+          const rotation = (r[`Block ${i} Rotation`] || '').trim();
+          const site = (r[`Block ${i} Site`] || '').trim();
+          cells.push(
+            `<td>
+               <span class="rotation" style="background-color:${colorFor(rotation)}">${rotation}</span>
+               <div class="site">${site}</div>
+             </td>`
+          );
+        }
+        html += `<tr><td>${sched}</td>${cells.join('')}</tr>`;
+      });
+
+      html += '</tbody></table>';
+      resultDiv.innerHTML = `<strong>Results:</strong><br>${html}`;
+    } catch (e) {
+      console.error(e);
       resultDiv.textContent = 'Error reading CSV file.';
     }
   }

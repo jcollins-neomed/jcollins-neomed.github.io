@@ -1,37 +1,135 @@
-<h1>Jason's Lottery Helper Tool</h1>
+<h1 class="app-title">Jason's Lottery Helper Tool</h1>
 
-<h2>Choose Filters</h2>
-<select id="dropdown">
-  <option value="">--Choose City--</option>
-  <option value="Akron">Akron</option>
-  <option value="Cleveland">Cleveland</option>
-  <option value="Youngstown">Youngstown</option>
-  <option value="Columbus">Columbus</option>
-</select>
+<section class="controls">
+  <div class="control-group">
+    <label for="dropdown">City:</label>
+    <select id="dropdown" class="styled-select">
+      <option value="">--Choose City--</option>
+      <option value="Akron">Akron</option>
+      <option value="Cleveland">Cleveland</option>
+      <option value="Youngstown">Youngstown</option>
+      <option value="Columbus">Columbus</option>
+    </select>
+  </div>
 
-<label for="mode">Filter Mode:</label>
-<select id="mode">
-  <option value="city">City Only</option>
-  <option value="rotation">Rotation Only</option>
-  <option value="and">City AND Rotation</option>
-  <option value="or">City OR Rotation</option>
-</select>
+  <div class="control-group">
+    <label for="mode">Filter Mode:</label>
+    <select id="mode" class="styled-select">
+      <option value="city">City Only</option>
+      <option value="rotation">Rotation Only</option>
+      <option value="and">City AND Rotation</option>
+    </select>
+  </div>
 
-<button id="searchBtn">Search</button>
+  <button id="searchBtn" class="btn-primary">Search</button>
+</section>
 
-<div id="filterGrid"></div>
-<div id="result"></div>
+<section id="filterGrid"></section>
+<section id="result"></section>
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
-  table { border-collapse: collapse; margin-top: 1em; width: 100%; }
-  th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: center; vertical-align: top; }
-  th { background: #f2f2f2; }
-  .rotation { display: block; padding: 2px 6px; margin-bottom: 2px; border-radius: 4px; color: #fff; font-size: 0.85em; }
-  .site { font-size: 0.8em; color: #555; }
-  .grid-table { margin-top:1em; border-collapse: collapse; }
-  .grid-table th, .grid-table td { border:1px solid #ddd; padding:4px; text-align:center; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: #f9fafb;
+    color: #333;
+    margin: 20px;
+  }
+  .app-title {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 20px;
+    color: #2c3e50;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  label {
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #555;
+  }
+  .styled-select, .btn-primary {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 1rem;
+  }
+  .btn-primary {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  .btn-primary:hover {
+    background-color: #45a049;
+  }
+  table {
+    border-collapse: collapse;
+    margin-top: 1em;
+    width: 100%;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  th, td {
+    border-bottom: 1px solid #eee;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  th {
+    background: #f3f4f6;
+    font-weight: 600;
+    color: #374151;
+  }
+  tr:hover {
+    background-color: #f9fafb;
+  }
+  .rotation {
+    display: inline-block;
+    padding: 3px 6px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 0.85em;
+  }
+  .site {
+    font-size: 0.8em;
+    color: #555;
+  }
+  .grid-table {
+    border-collapse: collapse;
+    margin: 20px auto;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  .grid-table th, .grid-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #eee;
+    text-align: center;
+  }
+  #filterGrid strong {
+    display: block;
+    text-align: center;
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+    color: #2c3e50;
+  }
 </style>
 
 <script>
@@ -84,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const choice = dropdown.value.trim();
     const mode = modeSelect.value;
 
-    // Collect unchecked boxes (excluded)
+    // Collect unchecked (excluded) combos
     const excluded = {};
     filterGridDiv.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb => {
       const rot = cb.dataset.rotation;
@@ -122,16 +220,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         switch (mode) {
-          case 'city':
-            return cityMatch;
-          case 'rotation':
-            return rotationAllowed;
-          case 'and':
-            return cityMatch && rotationAllowed;
-          case 'or':
-            return cityMatch || rotationAllowed;
-          default:
-            return true;
+          case 'city': return cityMatch;
+          case 'rotation': return rotationAllowed;
+          case 'and': return cityMatch && rotationAllowed;
+          default: return true;
         }
       });
 

@@ -13,14 +13,41 @@
 
 <div id="result"></div>
 
-<!-- PapaParse for CSV parsing -->
+<!-- PapaParse -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<style>
+  .rotation {
+    padding: 2px 6px;
+    margin-right: 4px;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 0.9em;
+    display: inline-block;
+  }
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const dropdown = document.getElementById('dropdown');
   const searchBtn = document.getElementById('searchBtn');
   const resultDiv = document.getElementById('result');
+
+  // Map specialties to colors
+  const specialtyColors = {
+    'Family Medicine': '#4CAF50',
+    'Internal Medicine': '#2196F3',
+    'Pediatrics': '#FF9800',
+    'Surgery': '#9C27B0',
+    'Obstetrics': '#E91E63',
+    'Psychiatry': '#795548',
+    // Add more specialties and colors as needed
+  };
+
+  // Get color or fallback if not listed
+  function getColor(specialty) {
+    return specialtyColors[specialty] || '#607D8B'; // default gray-blue
+  }
 
   async function searchCSV() {
     const choice = dropdown.value.trim();
@@ -34,15 +61,33 @@ document.addEventListener('DOMContentLoaded', () => {
       const text = await response.text();
       const parsed = Papa.parse(text, { header: true });
 
-      // Collect Student IDs where Dominant City matches
-      const matches = parsed.data
-        .filter(row => row['Dominant City'] === choice)
-        .map(row => row['Student ID']);
+      // Filter rows by Dominant City
+      const matches = parsed.data.filter(row => row['Dominant City'] === choice);
 
-      // Output all matches on one line, separated by commas
-      resultDiv.innerHTML = matches.length
-        ? `<strong>Matches:</strong> ${matches.join(', ')}`
-        : 'No matches found.';
+      if (!matches.length) {
+        resultDiv.textContent = 'No matches found.';
+        return;
+      }
+
+      const output = matches.map(row => {
+        // Collect all rotations (adjust column names to match your CSV)
+        const rotations = [
+          row['Block 1 Rotation'],
+          row['Block 2 Rotation'],
+          row['Block 3 Rotation'],
+          row['Block 4 Rotation']
+        ]
+        .filter(Boolean) // ignore empty values
+        .map(spec => {
+          const color = getColor(spec.trim());
+          return `<span class="rotation" style="background-color:${color}">${spec}</span>`;
+        })
+        .join(' ');
+
+        return `<div><strong>${row['Student ID']}</strong>: ${rotations}</div>`;
+      }).join('');
+
+      resultDiv.innerHTML = `<strong>Results:</strong><br>${output}`;
     } catch (err) {
       console.error(err);
       resultDiv.textContent = 'Error reading CSV file.';

@@ -1,16 +1,26 @@
-<header>Jason's Lottery Helper Tool</header>
-<body>
-  <select id="dropdown">
-    <option value="">--Choose City--</option>
-    <option value="Akron">Akron</option>
-    <option value="Cleveland">Cleveland</option>
-    <option value="Youngstown">Youngstown</option>
-    <option value="Columbus">Columbus</option>
-  </select>
-  <button id="searchBtn">Search</button>
+<h1>Jason's Lottery Helper Tool</h1>
 
-  <div id="filterGrid"></div>
-  <div id="result"></div>
+<h2>Choose Filters</h2>
+<select id="dropdown">
+  <option value="">--Choose City--</option>
+  <option value="Akron">Akron</option>
+  <option value="Cleveland">Cleveland</option>
+  <option value="Youngstown">Youngstown</option>
+  <option value="Columbus">Columbus</option>
+</select>
+
+<label for="mode">Filter Mode:</label>
+<select id="mode">
+  <option value="city">City Only</option>
+  <option value="rotation">Rotation Only</option>
+  <option value="and">City AND Rotation</option>
+  <option value="or">City OR Rotation</option>
+</select>
+
+<button id="searchBtn">Search</button>
+
+<div id="filterGrid"></div>
+<div id="result"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
@@ -27,6 +37,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const dropdown = document.getElementById('dropdown');
+  const modeSelect = document.getElementById('mode');
   const searchBtn = document.getElementById('searchBtn');
   const resultDiv = document.getElementById('result');
   const filterGridDiv = document.getElementById('filterGrid');
@@ -43,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     'Elective'
   ];
 
-  // Build filter grid: all boxes pre-checked
+  // Build pre-checked filter grid
   let gridHTML = '<table class="grid-table"><thead><tr><th>Rotation</th>';
   for (let i = 1; i <= numBlocks; i++) gridHTML += `<th>${i}</th>`;
   gridHTML += '</tr></thead><tbody>';
@@ -71,8 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function searchCSV() {
     const choice = dropdown.value.trim();
+    const mode = modeSelect.value;
 
-    // Collect unchecked (excluded) combos
+    // Collect unchecked boxes (excluded)
     const excluded = {};
     filterGridDiv.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb => {
       const rot = cb.dataset.rotation;
@@ -81,7 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
       excluded[blk].add(rot);
     });
 
-    const cityFilterActive = !!choice;
     const rotationFilterActive = Object.keys(excluded).length > 0;
 
     try {
@@ -96,9 +107,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const headers = Object.keys(parsed.data[0]);
       const idKey = headers.find(h => h.trim().toLowerCase().includes('id')) || headers[0];
 
-      // Either/Or filter
       const filtered = parsed.data.filter(r => {
-        const cityMatch = cityFilterActive ? (r['Dominant City'] || '').trim() === choice : false;
+        const cityMatch = choice && (r['Dominant City'] || '').trim() === choice;
+
         let rotationAllowed = true;
         if (rotationFilterActive) {
           for (let i = 1; i <= numBlocks; i++) {
@@ -109,14 +120,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
         }
-        if (cityFilterActive && rotationFilterActive) {
-          return cityMatch || rotationAllowed;
-        } else if (cityFilterActive) {
-          return cityMatch;
-        } else if (rotationFilterActive) {
-          return rotationAllowed;
-        } else {
-          return true; // no filters active
+
+        switch (mode) {
+          case 'city':
+            return cityMatch;
+          case 'rotation':
+            return rotationAllowed;
+          case 'and':
+            return cityMatch && rotationAllowed;
+          case 'or':
+            return cityMatch || rotationAllowed;
+          default:
+            return true;
         }
       });
 

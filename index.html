@@ -9,34 +9,30 @@
 
 <div id="result"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
 <script>
-async function searchCSV() {
-  const selected = document.getElementById('categorySelect').value;
-  const resultDiv = document.getElementById('result');
-  resultDiv.textContent = '';
+document.getElementById('fileInput').addEventListener('change', function (e) {
+  const file = e.target.files[0];
+  
+  Papa.parse(file, {
+    header: true,          // Use the first row as column headers
+    skipEmptyLines: true,  // Ignore blank rows
+    complete: function (results) {
+      const selected = document.getElementById('dropdown').value.trim().toLowerCase();
 
-  if (!selected) {
-    resultDiv.textContent = 'Please select a value.';
-    return;
-  }
+      // Filter rows where Dominant City matches selected value
+      const matches = results.data
+        .filter(row => row['Dominant City'] &&
+                       row['Dominant City'].trim().toLowerCase() === selected)
+        .map(row => row['Student ID']); // Collect Student IDs
 
-  try {
-    const response = await fetch('schedules.csv');
-    if (!response.ok) throw new Error('Failed to load CSV.');
-    const text = await response.text();
-
-    // Parse CSV (assumes simple commas, no quotes)
-    const rows = text.trim().split('\n').slice(1); // skip header
-    const matches = rows
-      .map(r => r.split(','))
-      .filter(cols => cols[20] && cols[20].trim().toLowerCase() === selected.toLowerCase()) // 5th column index = 4
-      .map(cols => cols[0].trim()); // first column
-
-    resultDiv.innerHTML = matches.length
-      ? `<strong>Matches:</strong> ${matches.join(', ')}`
-      : 'No matches found.';
-  } catch (err) {
-    resultDiv.textContent = 'Error: ' + err.message;
-  }
-}
+      // Display the results
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = matches.length
+        ? `<strong>Matches:</strong><ul>${matches.map(m => `<li>${m}</li>`).join('')}</ul>`
+        : 'No matches found.';
+    }
+  });
+});
 </script>

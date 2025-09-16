@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchBtn = document.getElementById('searchBtn');
   const resultDiv = document.getElementById('result');
 
-  // Colors for specialties
+  // Match your specialties exactly
   const specialtyColors = {
     'Surgery Clerkship': '#9C27B0',
     'Obstetric/Gynecology Clerkship': '#E91E63',
@@ -87,24 +87,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Table header for 9 blocks
-      const headers = Array.from({ length: 9 }, (_, i) => `<th>Block ${i+1}</th>`).join('');
+      // Adjust this number of blocks to match your CSV
+      const numBlocks = 9;
+      const headers = Array.from({ length: numBlocks }, (_, i) => `<th>Block ${i + 1}</th>`).join('');
       let tableHTML = `<table><thead><tr><th>Schedule</th>${headers}</tr></thead><tbody>`;
 
-      matches.forEach((row, idx) => {
+      matches.forEach(row => {
+        const scheduleNum = row['Student ID'] || row['Schedule']; // use your CSV's identifier column
         const blocks = [];
-        for (let i = 1; i <= 9; i++) {
-          const rotation = row[`Block ${i} Rotation`] || '';
-          const site = row[`Block ${i} Site`] || ''; // if you store hospital/site separately
-          const color = getColor(rotation.trim());
+        for (let i = 1; i <= numBlocks; i++) {
+          const rotationCell = row[`Block ${i} Rotation`] || '';
+          const [rotation, site] = rotationCell.split(' - ').map(s => s.trim());
+          const color = getColor(rotation);
           blocks.push(
             `<td>
-               <span class="rotation" style="background-color:${color}">${rotation}</span>
-               <div class="site">${site}</div>
-             </td>`
+              <span class="rotation" style="background-color:${color}">${rotation || ''}</span>
+              <div class="site">${site || ''}</div>
+            </td>`
           );
         }
-        tableHTML += `<tr><td>${idx + 1}</td>${blocks.join('')}</tr>`;
+        tableHTML += `<tr><td>${scheduleNum}</td>${blocks.join('')}</tr>`;
       });
 
       tableHTML += '</tbody></table>';

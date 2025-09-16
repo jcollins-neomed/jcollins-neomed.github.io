@@ -9,30 +9,44 @@
 
 <div id="result"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<!-- PapaParse for CSV parsing -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <script>
-document.getElementById('fileInput').addEventListener('change', function (e) {
-  const file = e.target.files[0];
-  
-  Papa.parse(file, {
-    header: true,          // Use the first row as column headers
-    skipEmptyLines: true,  // Ignore blank rows
-    complete: function (results) {
-      const selected = document.getElementById('dropdown').value.trim().toLowerCase();
+document.addEventListener('DOMContentLoaded', () => {
+  const dropdown = document.getElementById('dropdown');
+  const searchBtn = document.getElementById('searchBtn');
+  const resultDiv = document.getElementById('result');
 
-      // Filter rows where Dominant City matches selected value
-      const matches = results.data
-        .filter(row => row['Dominant City'] &&
-                       row['Dominant City'].trim().toLowerCase() === selected)
-        .map(row => row['Student ID']); // Collect Student IDs
+  async function searchCSV() {
+    const choice = dropdown.value.trim();
+    if (!choice) {
+      resultDiv.innerHTML = 'Please select a city.';
+      return;
+    }
 
-      // Display the results
-      const resultDiv = document.getElementById('result');
+    try {
+      // Fetch schedules.csv from the same directory as index.html
+      const response = await fetch('schedules.csv');
+      const text = await response.text();
+
+      // Parse CSV and filter by Dominant City
+      const parsed = Papa.parse(text, { header: true });
+      const matches = parsed.data
+        .filter(row => row['Dominant City'] === choice)
+        .map(row => row['Student ID']);
+
+      // Display results
       resultDiv.innerHTML = matches.length
         ? `<strong>Matches:</strong><ul>${matches.map(m => `<li>${m}</li>`).join('')}</ul>`
         : 'No matches found.';
+    } catch (err) {
+      console.error(err);
+      resultDiv.innerHTML = 'Error reading CSV file.';
     }
-  });
+  }
+
+  // Attach listener to button
+  searchBtn.addEventListener('click', searchCSV);
 });
 </script>

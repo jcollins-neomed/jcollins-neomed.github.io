@@ -21,7 +21,7 @@ async function searchCSV() {
   }
 
   try {
-    const response = await fetch('data.csv');
+    const response = await fetch('schedules.csv');
     if (!response.ok) throw new Error('Failed to load CSV.');
     const text = await response.text();
 

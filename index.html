@@ -11,8 +11,6 @@
   <button id="searchBtn">Search</button>
   <div id="result"></div>
 
-<div id="result"></div>
-
 <!-- PapaParse -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
@@ -33,16 +31,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchBtn = document.getElementById('searchBtn');
   const resultDiv = document.getElementById('result');
 
-  // Exact specialties from your CSV
   const specialtyColors = {
     'Surgery Clerkship': '#9C27B0',
     'Obstetric/Gynecology Clerkship': '#E91E63',
-    'Free': '#9E9E9E',
     'Family Medicine Clerkship': '#4CAF50',
     'Psychiatry Clerkship': '#795548',
     'Internal Medicine Clerkship': '#2196F3',
     'Emergency Medicine Clerkship': '#3F51B5',
-    'Pediatrics Clerkship': '#FF9800'
+    'Pediatrics Clerkship': '#FF9800',
+    'Elective': '#9E9E9E'
   };
   const colorFor = s => specialtyColors[s] || '#607D8B';
 
@@ -57,9 +54,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const parsed = Papa.parse(text, {
         header: true,
         skipEmptyLines: true,
-        // Strip BOM and whitespace from headers so 'Student ID' matches correctly
         transformHeader: h => h.replace(/^\uFEFF/, '').trim()
       });
+
+      if (!parsed.data.length) { resultDiv.textContent = 'CSV is empty or unreadable.'; return; }
+
+      // Inspect headers to find the correct ID field
+      const headers = Object.keys(parsed.data[0]);
+      const idKey = headers.find(h => h.trim().toLowerCase().includes('id')) || headers[0];
 
       const rows = parsed.data.filter(r => (r['Dominant City'] || '').trim() === choice);
       if (!rows.length) { resultDiv.textContent = 'No matches found.'; return; }
@@ -69,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
       let html = `<table><thead><tr><th>Schedule</th>${head}</tr></thead><tbody>`;
 
       rows.forEach(r => {
-        const sched = (r['Student ID'] || '').toString().trim(); // original number/id
+        const sched = (r[idKey] || '').toString().trim();
         const cells = [];
         for (let i = 1; i <= numBlocks; i++) {
           const rotation = (r[`Block ${i} Rotation`] || '').trim();

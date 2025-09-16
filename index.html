@@ -1,4 +1,4 @@
-<title>Jason's Lottery Helper Tool</title>
+<header>Jason's Lottery Helper Tool</header>
 <body>
   <select id="dropdown">
     <option value="">--Choose City--</option>
@@ -18,13 +18,10 @@
   table { border-collapse: collapse; margin-top: 1em; width: 100%; }
   th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: center; vertical-align: top; }
   th { background: #f2f2f2; }
-  .rotation {
-    display: block; padding: 2px 6px; margin-bottom: 2px;
-    border-radius: 4px; color: #fff; font-size: 0.85em;
-  }
+  .rotation { display: block; padding: 2px 6px; margin-bottom: 2px; border-radius: 4px; color: #fff; font-size: 0.85em; }
   .site { font-size: 0.8em; color: #555; }
   .grid-table { margin-top:1em; border-collapse: collapse; }
-  .grid-table th, .grid-table td { border:1px solid #ddd; padding:4px; }
+  .grid-table th, .grid-table td { border:1px solid #ddd; padding:4px; text-align:center; }
 </style>
 
 <script>
@@ -46,19 +43,19 @@ document.addEventListener('DOMContentLoaded', () => {
     'Elective'
   ];
 
-  // Build filter grid
+  // Build filter grid: all boxes pre-checked
   let gridHTML = '<table class="grid-table"><thead><tr><th>Rotation</th>';
   for (let i = 1; i <= numBlocks; i++) gridHTML += `<th>${i}</th>`;
   gridHTML += '</tr></thead><tbody>';
   specialties.forEach(spec => {
     gridHTML += `<tr><td>${spec}</td>`;
     for (let i = 1; i <= numBlocks; i++) {
-      gridHTML += `<td><input type="checkbox" data-rotation="${spec}" data-block="${i}"></td>`;
+      gridHTML += `<td><input type="checkbox" data-rotation="${spec}" data-block="${i}" checked></td>`;
     }
     gridHTML += '</tr>';
   });
   gridHTML += '</tbody></table>';
-  filterGridDiv.innerHTML = `<strong>Exclude Rotations:</strong>${gridHTML}`;
+  filterGridDiv.innerHTML = `<strong>Allowed Rotations (uncheck to exclude):</strong>${gridHTML}`;
 
   const specialtyColors = {
     'Surgery Clerkship': '#9C27B0',
@@ -74,16 +71,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function searchCSV() {
     const choice = dropdown.value.trim();
-    if (!choice) { resultDiv.textContent = 'Please select a city.'; return; }
 
-    // Collect excluded combos
+    // Collect unchecked (excluded) combos
     const excluded = {};
-    filterGridDiv.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+    filterGridDiv.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb => {
       const rot = cb.dataset.rotation;
       const blk = cb.dataset.block;
       if (!excluded[blk]) excluded[blk] = new Set();
       excluded[blk].add(rot);
     });
+
+    const cityFilterActive = !!choice;
+    const rotationFilterActive = Object.keys(excluded).length > 0;
 
     try {
       const resp = await fetch('schedules.csv');
@@ -97,20 +96,31 @@ document.addEventListener('DOMContentLoaded', () => {
       const headers = Object.keys(parsed.data[0]);
       const idKey = headers.find(h => h.trim().toLowerCase().includes('id')) || headers[0];
 
-      const rows = parsed.data.filter(r => (r['Dominant City'] || '').trim() === choice);
-
-      // Filter out excluded rotations
-      const filtered = rows.filter(r => {
-        for (let i = 1; i <= numBlocks; i++) {
-          const rotation = (r[`Block ${i} Rotation`] || '').trim();
-          if (excluded[i] && excluded[i].has(rotation)) {
-            return false;
+      // Either/Or filter
+      const filtered = parsed.data.filter(r => {
+        const cityMatch = cityFilterActive ? (r['Dominant City'] || '').trim() === choice : false;
+        let rotationAllowed = true;
+        if (rotationFilterActive) {
+          for (let i = 1; i <= numBlocks; i++) {
+            const rotation = (r[`Block ${i} Rotation`] || '').trim();
+            if (excluded[i] && excluded[i].has(rotation)) {
+              rotationAllowed = false;
+              break;
+            }
           }
         }
-        return true;
+        if (cityFilterActive && rotationFilterActive) {
+          return cityMatch || rotationAllowed;
+        } else if (cityFilterActive) {
+          return cityMatch;
+        } else if (rotationFilterActive) {
+          return rotationAllowed;
+        } else {
+          return true; // no filters active
+        }
       });
 
-      if (!filtered.length) { resultDiv.textContent = 'No matches found after filtering.'; return; }
+      if (!filtered.length) { resultDiv.textContent = 'No matches found.'; return; }
 
       const head = Array.from({length: numBlocks}, (_, i) => `<th>Block ${i+1}</th>`).join('');
       let html = `<table><thead><tr><th>Schedule</th>${head}</tr></thead><tbody>`;

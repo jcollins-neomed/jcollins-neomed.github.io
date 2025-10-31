@@ -25,10 +25,10 @@
   </div>
 
   <!-- "View Rank List" button added -->
+  <button id="searchBtn" class="btn-primary">Search</button>
   <button id="viewRankListBtn" class="btn-secondary">
     View Rank List (<span id="rankCount">0</span>)
   </button>
-  <button id="searchBtn" class="btn-primary">Search</button>
   <span id="addMessage"></span> <!-- For "Added!" or "Already in list" messages -->
 </section>
 
@@ -252,9 +252,7 @@
   .rank-list-ol li {
     padding: 12px 8px;
     border-bottom: 1px solid #eee;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: block; /* Changed from flex to block */
     font-size: 1.1rem;
   }
   .rank-list-ol li:last-child {
@@ -274,6 +272,53 @@
     align-items: center;
     gap: 5px;
   }
+
+  /* New styles for the expanded rank list view */
+  .rank-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px; /* Add some space below header */
+  }
+
+  .rank-item-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px;
+    background-color: #f_f_f; /* Slightly off-white background */
+    border-radius: 4px;
+    border: 1px solid #f0f0f0;
+  }
+
+  .rank-block {
+    flex: 1; /* Allow blocks to grow and fill space */
+    min-width: 80px; /* Set a min-width for each block */
+    padding: 6px;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    background: #fff;
+    text-align: center;
+    font-size: 0.8rem; /* Smaller font for detail view */
+  }
+
+  .rank-block-number {
+    font-weight: bold;
+    font-size: 0.9em;
+    color: #333;
+    margin-bottom: 4px;
+  }
+
+  /* Adjust existing rotation/site styles for this context */
+  .rank-block .rotation {
+    font-size: 0.9em; /* Ensure font size is consistent */
+    padding: 2px 4px;
+  }
+  .rank-block .site {
+    font-size: 0.85em;
+    margin-top: 4px; /* Add space above site name */
+  }
+
 
 </style>
 
@@ -366,17 +411,41 @@ document.addEventListener('DOMContentLoaded', () => {
       const id = idKey ? item[idKey] : 'Unknown ID';
       const city = cityKey ? item[cityKey] : 'Unknown City';
 
-      li.innerHTML = `
-        <div>
-          <span class="rank-item-name">${id}</span>
-          <span class="rank-item-city">(${city})</span>
-        </div>
-        <div class="rank-controls">
-          <button class="btn-rank" data-index="${index}" ${index === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
-          <button class="btn-rank" data-index="${index}" ${index === rankList.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
-          <button class="btn-danger" data-index="${index}" aria-label="Remove">×</button>
+      // --- Build the new, detailed HTML for the list item ---
+      
+      // 1. Create the header (ID, City, Controls)
+      let headerHTML = `
+        <div class="rank-item-header">
+          <div>
+            <span class="rank-item-name">${id}</span>
+            <span class="rank-item-city">(${city})</span>
+          </div>
+          <div class="rank-controls">
+            <button class="btn-rank" data-index="${index}" ${index === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
+            <button class="btn-rank" data-index="${index}" ${index === rankList.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
+            <button class="btn-danger" data-index="${index}" aria-label="Remove">×</button>
+          </div>
         </div>
       `;
+
+      // 2. Create the details (all the blocks)
+      let detailsHTML = '<div class="rank-item-details">';
+      for (let i = 1; i <= numBlocks; i++) {
+        const rotation = (item[`Block ${i} Rotation`] || '').trim();
+        const site = (item[`Block ${i} Site`] || '').trim();
+        
+        detailsHTML += `
+          <div class="rank-block">
+            <div class="rank-block-number">Block ${i}</div>
+            <span class="rotation" style="background-color:${colorFor(rotation)}">${rotation || 'N/A'}</span>
+            <div class="site">${site || '-'}</div>
+          </div>
+        `;
+      }
+      detailsHTML += '</div>';
+
+      // 3. Set the combined HTML
+      li.innerHTML = headerHTML + detailsHTML;
       rankListItems.appendChild(li);
     });
   }
@@ -563,4 +632,6 @@ document.addEventListener('DOMContentLoaded', () => {
   searchBtn.addEventListener('click', searchCSV);
 });
 </script>
+
+
 

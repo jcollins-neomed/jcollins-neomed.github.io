@@ -1,25 +1,34 @@
 <h1 class="app-title">Jason's Lottery Helper Tool</h1>
 
 <section class="controls">
-  <div class="control-group">
-    <label for="dropdown">City:</label>
-    <select id="dropdown" class="styled-select">
-      <option value="">--Choose City--</option>
-      <option value="Akron">Akron</option>
-      <option value="Eastern Cleveland">Eastern Cleveland</option>
-      <option value="Western Cleveland">Western Cleveland</option>
-      <option value="Youngstown">Youngstown</option>
-      <option value="Columbus">Columbus</option>
-      <option value="Rootstown">Rootstown</option>
-      <option value="Canton">Canton</option>
-    </select>
-  </div>
+  <div class="control-group">
+    <label for="dropdown">City:</label>
+    <select id="dropdown" class="styled-select">
+      <option value="">--Choose City--</option>
+      <option value="Akron">Akron</option>
+      <option value="Eastern Cleveland">Eastern Cleveland</option>
+      <option value="Western Cleveland">Western Cleveland</option>
+      <option value="Youngstown">Youngstown</option>
+      <option value="Columbus">Columbus</option>
+      <option value="Rootstown">Rootstown</option>
+      <option value="Canton">Canton</option>
+    </select>
+  </div>
+
+  <div class="control-group">
+    <label for="mode">Filter Mode:</label>
+    <select id="mode" class="styled-select">
+      <option value="city">City Only</option>
+      <option value="rotation">Rotation Only</option>
+      <option value="and">City AND Rotation</option>
+    </select>
+  </div>
 
   <!-- "View Rank List" button added -->
-  <button id="viewRankListBtn" class="btn-secondary">
+  <button id="viewRankListBtn" class="btn-secondary">
     View Rank List (<span id="rankCount">0</span>)
   </button>
-  <button id="searchBtn" class="btn-primary">Search</button>
+  <button id="searchBtn" class="btn-primary">Search</button>
   <span id="addMessage"></span> <!-- For "Added!" or "Already in list" messages -->
 </section>
 
@@ -36,6 +45,7 @@
     <div>
       <button id="backToSearchBtn" class="btn-secondary">← Back to Search</button>
       <button id="downloadCSVBtn" class="btn-primary">Download as CSV</button>
+      <span id="rankListMessage" class="rank-message"></span>
     </div>
   </div>
   <p id="rankListEmpty" style="text-align: center; display: none;">Your rank list is empty. Go back to search to add schedules.</p>
@@ -45,47 +55,48 @@
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
-  body {
-    font-family: Arial, Helvetica, sans-serif;
-    background-color: #f9fafb;
-    color: #333;
-    margin: 20px;
-  }
-  .app-title {
-    text-align: center;
-    font-size: 2rem;
-    margin-bottom: 20px;
-    color: #2c3e50;
-  }
-  .controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 20px;
-  }
-  .control-group {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: #f9fafb;
+    color: #333;
+    margin: 20px;
+  }
+  .app-title {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 20px;
+    color: #2c3e50;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
   #addMessage {
     margin-left: 10px;
     font-size: 0.9em;
     color: #4CAF50;
   }
-  label {
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #555;
-  }
-  .styled-select, .btn-primary {
-    padding: 8px 12px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    font-size: 1rem;
-  }
+  label {
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #555;
+  }
+  .styled-select, .btn-primary, .btn-secondary { /* Added .btn-secondary for consistent sizing */
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 1rem;
+  }
+
   /* Style for secondary/toggle buttons */
   .btn-secondary {
     background-color: #555;
@@ -131,38 +142,38 @@
     cursor: not-allowed;
   }
 
-  .btn-primary {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    cursor: pointer;
-  G:   transition: background-color 0.2s ease;
-  }
-  .btn-primary:hover {
-    background-color: #45a049;
-  }
-  table {
-    border-collapse: collapse;
-    margin-top: 1em;
-    width: 100%;
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-G: }
-  th, td {
-    border-bottom: 1px solid #eee;
-    padding: 8px 10px;
-    text-align: center;
-  }
-  th {
-    background: #f3f4f6;
-    font-weight: 600;
-    color: #374151;
-  }
-  tr:hover {
-    background-color: #f9fafb;
-  }
+  .btn-primary {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  .btn-primary:hover {
+    background-color: #45a049;
+  }
+  table {
+    border-collapse: collapse;
+    margin-top: 1em;
+    width: 100%;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  th, td {
+    border-bottom: 1px solid #eee;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  th {
+    background: #f3f4f6;
+    font-weight: 600;
+    color: #374151;
+  }
+  tr:hover {
+    background-color: #f9fafb;
+  }
   /* Class for the 'Add' button in the results table */
   .btn-add {
     font-size: 1.2rem;
@@ -182,38 +193,38 @@ G: }
     cursor: not-allowed;
     background: none;
   }
-  .rotation {
-    display: inline-block;
-    padding: 3px 6px;
-    margin-bottom: 4px;
-    border-radius: 4px;
-    color: #fff;
-    font-size: 0.85em;
-  }
-  .site {
-    font-size: 0.8em;
-    color: #555;
-  }
-  .grid-table {
-    border-collapse: collapse;
-    margin: 20px auto;
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  }
-  .grid-table th, .grid-table td {
-    padding: 6px 8px;
-    border-bottom: 1px solid #eee;
-    text-align: center;
-  }
-  #filterGrid strong {
-    display: block;
-    text-align: center;
-    margin-bottom: 10px;
-    font-size: 1.1rem;
-    color: #2c3e50;
-G: }
+  .rotation {
+    display: inline-block;
+    padding: 3px 6px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 0.85em;
+  }
+  .site {
+    font-size: 0.8em;
+    color: #555;
+  }
+  .grid-table {
+    border-collapse: collapse;
+    margin: 20px auto;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+  .grid-table th, .grid-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #eee;
+    text-align: center;
+  }
+  #filterGrid strong {
+    display: block;
+    text-align: center;
+    margin-bottom: 10px;
+    font-size: 1.1rem;
+    color: #2c3e50;
+  }
 
   /* New Styles for Rank List Section */
   .rank-list-header {
@@ -224,6 +235,10 @@ G: }
     flex-wrap: wrap;
     gap: 10px;
   }
+  .rank-list-header .rank-message {
+    margin-left: 10px;
+    font-size: 0.9em;
+  }
   .rank-list-ol {
     list-style-type: decimal;
     padding-left: 30px;
@@ -232,6 +247,7 @@ G: }
     box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     padding: 20px;
     padding-left: 50px; /* Make space for numbers */
+    margin: 0;
   }
   .rank-list-ol li {
     padding: 12px 8px;
@@ -263,11 +279,11 @@ G: }
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const dropdown = document.getElementById('dropdown');
-  const modeSelect = document.getElementById('mode');
-  const searchBtn = document.getElementById('searchBtn');
-  const resultDiv = document.getElementById('result');
-  const filterGridDiv = document.getElementById('filterGrid');
+  const dropdown = document.getElementById('dropdown');
+  const modeSelect = document.getElementById('mode');
+  const searchBtn = document.getElementById('searchBtn');
+  const resultDiv = document.getElementById('result');
+  const filterGridDiv = document.getElementById('filterGrid');
 
   // New Rank List elements
   const searchSection = document.getElementById('searchSection');
@@ -279,40 +295,41 @@ document.addEventListener('DOMContentLoaded', () => {
   const rankCountSpan = document.getElementById('rankCount');
   const addMessageSpan = document.getElementById('addMessage');
   const rankListEmptyP = document.getElementById('rankListEmpty');
+  const rankListMessageSpan = document.getElementById('rankListMessage');
 
   // Global state for rank list
   let rankList = [];
   // To be populated by CSV parse
   let idKey, cityKey;
 
-  const numBlocks = 9;
-  const specialties = [
-    'Surgery','Obstetric/Gynecology','Family Medicine',
-    'Psychiatry','Internal Medicine','Emergency Medicine',
-    'Pediatrics','Elective'
-  ];
+  const numBlocks = 9;
+  const specialties = [
+    'Surgery','Obstetric/Gynecology','Family Medicine',
+    'Psychiatry','Internal Medicine','Emergency Medicine',
+    'Pediatrics','Elective'
+  ];
 
-  // Build grid
-  let gridHTML = '<table class="grid-table"><thead><tr><th>Rotation</th>';
-  for (let i = 1; i <= numBlocks; i++) gridHTML += `<th>${i}</th>`;
-  gridHTML += '</tr></thead><tbody>';
-  specialties.forEach(spec => {
-    gridHTML += `<tr><td>${spec}</td>`;
-    for (let i = 1; i <= numBlocks; i++) {
-      gridHTML += `<td><input type="checkbox" data-rotation="${spec}" data-block="${i}" checked></td>`;
-    }
-    gridHTML += '</tr>';
-  });
-  gridHTML += '</tbody></table>';
-  filterGridDiv.innerHTML = `<strong>Allowed Rotations (uncheck to exclude):</strong>${gridHTML}`;
+  // Build grid
+  let gridHTML = '<table class="grid-table"><thead><tr><th>Rotation</th>';
+  for (let i = 1; i <= numBlocks; i++) gridHTML += `<th>${i}</th>`;
+  gridHTML += '</tr></thead><tbody>';
+  specialties.forEach(spec => {
+    gridHTML += `<tr><td>${spec}</td>`;
+    for (let i = 1; i <= numBlocks; i++) {
+      gridHTML += `<td><input type="checkbox" data-rotation="${spec}" data-block="${i}" checked></td>`;
+    }
+    gridHTML += '</tr>';
+  });
+  gridHTML += '</tbody></table>';
+  filterGridDiv.innerHTML = `<strong>Allowed Rotations (uncheck to exclude):</strong>${gridHTML}`;
 
-G: const specialtyColors = {
-    'Surgery':'#9C27B0','Obstetric/Gynecology':'#E91E63',
-    'Family Medicine':'#4CAF50','Psychiatry':'#795548',
-    'Internal Medicine':'#2196F3','Emergency Medicine':'#3F51B5',
-G: 'Pediatrics':'#FF9800','Elective':'#9E9E9E'
-  };
-  const colorFor = s => specialtyColors[s] || '#607D8B';
+  const specialtyColors = {
+    'Surgery':'#9C27B0','Obstetric/Gynecology':'#E91E63',
+    'Family Medicine':'#4CAF50','Psychiatry':'#795548',
+    'Internal Medicine':'#2196F3','Emergency Medicine':'#3F51B5',
+    'Pediatrics':'#FF9800','Elective':'#9E9E9E'
+  };
+  const colorFor = s => specialtyColors[s] || '#607D8B';
 
   // --- View Toggling ---
   function showSection(sectionToShow) {
@@ -345,10 +362,14 @@ G: 'Pediatrics':'#FF9800','Elective':'#9E9E9E'
 
     rankList.forEach((item, index) => {
       const li = document.createElement('li');
+      // Ensure keys are defined before trying to access
+      const id = idKey ? item[idKey] : 'Unknown ID';
+      const city = cityKey ? item[cityKey] : 'Unknown City';
+
       li.innerHTML = `
         <div>
-          <span class="rank-item-name">${item[idKey] || 'Unknown ID'}</span>
-          <span class="rank-item-city">(${(item[cityKey] || 'Unknown City')})</span>
+          <span class="rank-item-name">${id}</span>
+          <span class="rank-item-city">(${city})</span>
         </div>
         <div class="rank-controls">
           <button class="btn-rank" data-index="${index}" ${index === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
@@ -387,34 +408,48 @@ G: 'Pediatrics':'#FF9800','Elective':'#9E9E9E'
     if (!target) return;
 
     const schedId = target.dataset.id;
-    if (rankList.some(item => item[idKey] === schedId)) {
+    // Ensure idKey is set before checking
+    if (idKey && rankList.some(item => item[idKey] === schedId)) {
         addMessageSpan.textContent = 'Already in list!';
         setTimeout(() => addMessageSpan.textContent = '', 2000);
         return;
     }
 
-    const rowData = JSON.parse(target.dataset.row);
-    rankList.push(rowData);
-    rankCountSpan.textContent = rankList.length;
-    target.textContent = '✓';
-    target.disabled = true;
-    
-    addMessageSpan.textContent = 'Added!';
-    setTimeout(() => addMessageSpan.textContent = '', 2000);
+    try {
+      // Use JSON.parse to turn the string attribute back into an object
+      const rowData = JSON.parse(target.dataset.row);
+      rankList.push(rowData);
+      rankCountSpan.textContent = rankList.length;
+      target.textContent = '✓';
+      target.disabled = true;
+      
+      addMessageSpan.textContent = 'Added!';
+      setTimeout(() => addMessageSpan.textContent = '', 2000);
+    } catch (err) {
+      console.error("Failed to parse row data:", err);
+      addMessageSpan.textContent = 'Error adding item.';
+      setTimeout(() => addMessageSpan.textContent = '', 2000);
+    }
   });
 
   // Handle Download CSV
   downloadCSVBtn.addEventListener('click', () => {
     if (rankList.length === 0) {
-      alert('Your rank list is empty.'); // Using alert here as it's a simple feedback
+      rankListMessageSpan.textContent = 'List is empty.';
+      rankListMessageSpan.style.color = '#f44336'; // Make it red
+      setTimeout(() => {
+          rankListMessageSpan.textContent = '';
+          rankListMessageSpan.style.color = '#4CAF50'; // Reset color
+      }, 3000);
       return;
     }
 
     let csvContent = "Rank,Schedule ID,City\n";
     rankList.forEach((item, index) => {
       const rank = index + 1;
-      const id = item[idKey] || '';
-      const city = item[cityKey] || '';
+      const id = (idKey && item[idKey]) ? item[idKey] : '';
+      const city = (cityKey && item[cityKey]) ? item[cityKey] : '';
+      // Ensure quotes are handled within CSV fields
       csvContent += `${rank},"${id.replace(/"/g, '""')}","${city.replace(/"/g, '""')}"\n`;
     });
 
@@ -430,90 +465,102 @@ G: 'Pediatrics':'#FF9800','Elective':'#9E9E9E'
   });
 
 
-  async function searchCSV() {
-    const choice = dropdown.value.trim();
-    const mode = modeSelect.value;
+  async function searchCSV() {
+    const choice = dropdown.value.trim();
+    const mode = modeSelect.value;
 
-    // collect unchecked
-    const excluded = {};
-    filterGridDiv.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb=>{
-      const rot = cb.dataset.rotation, blk = cb.dataset.block;
-      if(!excluded[blk]) excluded[blk]=new Set(); excluded[blk].add(rot);
-G:   });
-    const rotationFilterActive = Object.keys(excluded).length>0;
+    // collect unchecked
+    const excluded = {};
+    filterGridDiv.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb=>{
+      const rot = cb.dataset.rotation, blk = cb.dataset.block;
+      if(!excluded[blk]) excluded[blk]=new Set(); excluded[blk].add(rot);
+    });
+    const rotationFilterActive = Object.keys(excluded).length>0;
 
-    try {
-      const resp = await fetch('schedules.csv');
-      const text = await resp.text();
-      const parsed = Papa.parse(text,{
-      
-      // Detect actual city key dynamically
-      const headers = Object.keys(parsed.data[0]);
-          // Set global keys if not already set
-          if (!cityKey) {
-            cityKey = headers.find(k=>k.trim().toLowerCase().includes('city')) || 'Dominant City';
+    try {
+      const resp = await fetch('schedules.csv');
+      const text = await resp.text();
+      const parsed = Papa.parse(text,{
+        header:true, skipEmptyLines:true,
+        transformHeader:h=>h.replace(/^\uFEFF/,'').trim()
+      });
+
+      if(!parsed.data.length){ resultDiv.textContent='CSV empty or unreadable'; return;}
+
+      // Detect actual city key dynamically
+      const headers = Object.keys(parsed.data[0]);
+      // Set global keys if not already set
+      if (!cityKey) {
+        cityKey = headers.find(k=>k.trim().toLowerCase().includes('city')) || 'Dominant City';
+      }
+      if (!idKey) {
+        idKey = headers.find(k=>k.trim().toLowerCase().includes('id')) || headers[0];
+      }
+
+      const filtered = parsed.data.filter(r=>{
+        // Allow empty city choice to show all
+        const cityMatch = !choice || (r[cityKey]||'').trim()===choice;
+        let rotationAllowed=true;
+        if(rotationFilterActive){
+          for(let i=1;i<=numBlocks;i++){
+            const rotation=(r[`Block ${i} Rotation`]||'').trim();
+            if(excluded[i]&&excluded[i].has(rotation)){ rotationAllowed=false; break;}
           }
-          if (!idKey) {
-            idKey = headers.find(k=>k.trim().toLowerCase().includes('id')) || headers[0];
-          }
+        }
+        switch(mode){
+          case 'city': return cityMatch;
+          case 'rotation': return rotationAllowed;
+          case 'and': return cityMatch && rotationAllowed;
+          default: return true;
+        }
+      });
 
-      const filtered = parsed.data.filter(r=>{
-        const cityMatch = choice && (r[cityKey]||'').trim()===choice;
-        let rotationAllowed=true;
-        if(rotationFilterActive){
-          for(let i=1;i<=numBlocks;i++){
-            const rotation=(r[`Block ${i} Rotation`]||'').trim();
-            if(excluded[i]&&excluded[i].has(rotation)){ rotationAllowed=false; break;}
-          }
-        }
-        switch(mode){
-          case 'city': return cityMatch;
-        S: case 'rotation': return rotationAllowed;
-          case 'and': return cityMatch && rotationAllowed;
-          default: return true;
-        }
-      });
+      if(!filtered.length){ resultDiv.textContent='No matches found.'; return;}
 
-      if(!filtered.length){ resultDiv.textContent='No matches found.'; return;}
+      const head = Array.from({length:numBlocks},(_,i)=>`<th>Block ${i+1}</th>`).join('');
+      // Modified header to include 'Add' and 'Schedule'
+      let html=`<table><thead><tr><th>Add</th><th>Schedule</th>${head}</tr></thead><tbody>`;
+      filtered.forEach(r=>{
+        const sched=(r[idKey]||'').toString().trim();
+        // Check if this item is already in the rank list to set button state
+        const isInRankList = rankList.some(item => item[idKey] === sched);
 
-      const head = Array.from({length:numBlocks},(_,i)=>`<th>Block ${i+1}</th>`).join('');
-          // Modified header to include 'Add' and 'Schedule'
-      let html=`<table><thead><tr><th>Add</th><th>Schedule</th>${head}</tr></thead><tbody>`;
-      filtered.forEach(r=>{
-        const sched=(r[idKey]||'').toString().trim();
-          // Check if this item is already in the rank list to set button state
-          const isInRankList = rankList.some(item => item[idKey] === sched);
+        const cells=[];
+        for(let i=1;i<=numBlocks;i++){
+          const rotation=(r[`Block ${i} Rotation`]||'').trim();
+          const site=(r[`Block ${i} Site`]||'').trim();
+          cells.push(
+            `<td>
+              <span class="rotation" style="background-color:${colorFor(rotation)}">${rotation}</span>
+              <div class="site">${site}</div>
+             </td>`
+          );
+        }
+        // Add the '+' button column
+        // We serialize the entire row object 'r' into the data-row attribute
+        // We must escape single quotes in the JSON string for the HTML attribute
+        const rowDataString = JSON.stringify(r).replace(/'/g, "&apos;");
+        const addButton = `<td>
+            <button 
+              class="btn-add" 
+              data-id='${sched}' 
+              data-row='${rowDataString}'
+              ${isInRankList ? 'disabled' : ''}
+            >
+              ${isInRankList ? '✓' : '+'}
+            </button>
+          </td>`;
+        html+=`<tr>${addButton}<td>${sched}</td>${cells.join('')}</tr>`;
+      });
+      html+='</tbody></table>';
+      resultDiv.innerHTML=`<strong>Results:</strong><br>${html}`;
+    } catch(e){
+      console.error(e);
+      resultDiv.textContent='Error reading CSV file.';
+    }
+  }
 
-        const cells=[];
-        for(let i=1;i<=numBlocks;i++){
-              <div class="site">${site}</div>
-             </td>`
-          );
-  S:     }
-          // Add the '+' button column
-          // We serialize the entire row object 'r' into the data-row attribute
-          // And add the schedule ID to data-id for easy checking
-          const addButton = `<td>
-              <button 
-                class="btn-add" 
-                data-id='${sched}' 
-                data-row='${JSON.stringify(r).replace(/'/g, "&apos;")}'
-                ${isInRankList ? 'disabled' : ''}
-              >
-                ${isInRankList ? '✓' : '+'}
-              </button>
-            </td>`;
-        html+=`<tr>${addButton}<td>${sched}</td>${cells.join('')}</tr>`;
-      });
-      html+='</tbody></table>';
-      resultDiv.innerHTML=`<strong>Results:</strong><br>${html}`;
-    } catch(e){
-      console.error(e);
-    s: resultDiv.textContent='Error reading CSV file.';
-    }
-  }
-
-  searchBtn.addEventListener('click', searchCSV);
+  searchBtn.addEventListener('click', searchCSV);
 });
 </script>
 

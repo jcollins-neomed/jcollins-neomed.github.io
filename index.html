@@ -381,6 +381,45 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const colorFor = s => specialtyColors[s] || '#607D8B';
 
+  // --- New function to load the master schedule ---
+  // This avoids code duplication and can be called from search or upload
+  async function loadMasterSchedule() {
+    if (allSchedules.length > 0) return true; // Already loaded
+
+    try {
+      const resp = await fetch('schedules.csv');
+      const text = await resp.text();
+      const parsed = Papa.parse(text,{
+        header:true, skipEmptyLines:true,
+        transformHeader:h=>h.replace(/^\uFEFF/,'').trim()
+      });
+
+      if(!parsed.data.length) {
+        console.error("Master schedule CSV empty or unreadable");
+        return false;
+      }
+      
+      // Store all data
+      allSchedules = parsed.data;
+
+      // Detect actual city key dynamically
+      const headers = Object.keys(allSchedules[0]);
+      // Set global keys if not already set
+      if (!cityKey) {
+        cityKey = headers.find(k=>k.trim().toLowerCase().includes('city')) || 'Dominant City';
+      }
+      if (!idKey) {
+        idKey = headers.find(k=>k.trim().toLowerCase().includes('id')) || headers[0];
+      }
+      return true; // Success
+
+    } catch (e) {
+      console.error("Error loading master schedule:", e);
+      return false; // Failure
+    }
+  }
+
+
   // --- View Toggling ---
   function showSection(sectionToShow) {
     if (sectionToShow === 'rank') {
@@ -512,22 +551,30 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Handle File Upload Event
-  uploadCSVInput.addEventListener('change', (event) => {
+  uploadCSVInput.addEventListener('change', async (event) => { // Made async
     const file = event.target.files[0];
     if (!file) {
       return;
     }
 
-    // Check if main data is loaded
-    if (!idKey || allSchedules.length === 0) {
-      rankListMessageSpan.textContent = 'Please run a search first to load schedule data.';
-      rankListMessageSpan.style.color = '#f44336';
-      setTimeout(() => {
-          rankListMessageSpan.textContent = '';
-          rankListMessageSpan.style.color = '#4CAF50';
-      }, 3000);
-      event.target.value = null; // Clear file input
-      return;
+    // Check if main data is loaded, if not, load it
+    if (allSchedules.length === 0) {
+      rankListMessageSpan.textContent = 'Loading master schedule...';
+      rankListMessageSpan.style.color = '#555'; // Neutral color
+      
+      const success = await loadMasterSchedule();
+      
+      if (!success) {
+        rankListMessageSpan.textContent = 'Error loading master schedule. Cannot upload.';
+        rankListMessageSpan.style.color = '#f44336';
+        setTimeout(() => {
+            rankListMessageSpan.textContent = '';
+            rankListMessageSpan.style.color = '#4CAF50';
+        }, 3000);
+        event.target.value = null; // Clear file input
+        return;
+      }
+      // If successful, fall through to the rest of the function
     }
 
     // Parse the uploaded CSV
@@ -647,27 +694,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const rotationFilterActive = Object.keys(excluded).length>0;
 
     try {
-      const resp = await fetch('schedules.csv');
-      const text = await resp.text();
-      const parsed = Papa.parse(text,{
-        header:true, skipEmptyLines:true,
-        transformHeader:h=>h.replace(/^\uFEFF/,'').trim()
-      });
-
-      if(!parsed.data.length){ resultDiv.textContent='CSV empty or unreadable'; return;}
+      // Ensure master schedule is loaded
+      if (allSchedules.length === 0) {
+        rankListMessageSpan.textContent = 'Loading master schedule...';
+        rankListMessageSpan.style.color = '#555';
+        const success = await loadMasterSchedule();
+        rankListMessageSpan.textContent = ''; // Clear message
+        if (!success) {
+          resultDiv.textContent='Error reading CSV file.';
+          return;
+        }
+      }
       
-      // Store all data
-      allSchedules = parsed.data;
-
-      // Detect actual city key dynamically
-      const headers = Object.keys(allSchedules[0]);
-      // Set global keys if not already set
-      if (!cityKey) {
-        cityKey = headers.find(k=>k.trim().toLowerCase().includes('city')) || 'Dominant City';
-      }
-      if (!idKey) {
-        idKey = headers.find(k=>k.trim().toLowerCase().includes('id')) || headers[0];
-      }
+      // Master schedule is loaded (either now or previously),
+      // allSchedules, idKey, and cityKey are set.
+      // Now, just do the filtering and rendering.
 
       const filtered = allSchedules.filter(r=>{
         // Allow empty city choice to show all

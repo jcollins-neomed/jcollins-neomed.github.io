@@ -15,7 +15,7 @@
             padding: 20px;
         }
         .container {
-            max-width: 1400px;
+            /* max-width: 1400px; */ /* Removed for full-width layout */
             margin: 0 auto;
         }
         .app-title {
@@ -93,6 +93,26 @@
             background-color: #d32f2f;
         }
         
+        /* Style for small rank-list buttons */
+        .btn-rank {
+            background-color: #f0f0f0;
+            color: #333;
+            border: 1px solid #ccc;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0px 6px;
+            border-radius: 4px;
+            margin: 0 2px;
+            line-height: 1.2;
+        }
+        .btn-rank:hover {
+            background-color: #e0e0e0;
+        }
+        .btn-rank:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* --- Star Rating Styles --- */
         .star-rating-container {
             min-width: 140px; /* Give stars room */
@@ -131,6 +151,15 @@
          .rank-item-rating .star:hover {
             color: #ccc; /* No hover effect */
             transform: none;
+        }
+         /* Make stars on rank list editable */
+         .rank-item-rating.editable .star {
+            cursor: pointer;
+            padding: 0 1px;
+        }
+         .rank-item-rating.editable .star:hover {
+            color: #f39c12; /* Hover color */
+            transform: scale(1.1);
         }
         .rank-item-rating .star.filled {
             color: #f1c40f;
@@ -285,6 +314,21 @@
             font-size: 0.85em;
             margin-top: 4px; 
         }
+        
+        /* Header for rating groups on rank list */
+        .rating-group-header {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #007bff;
+        }
+        /* Remove top margin from the very first header */
+        h3.rating-group-header:first-of-type {
+            margin-top: 0;
+        }
     </style>
 </head>
 <body>
@@ -369,7 +413,7 @@
         const rankListMessageSpan = document.getElementById('rankListMessage');
 
         // Global state for rank list
-        // Now an array of { schedule: Object, rating: Number }
+        // Now an array of { schedule: Object, rating: Number, rankOrder: Number }
         let rankList = []; 
         let allSchedules = []; // Store all schedules from the main CSV
         // To be populated by CSV parse
@@ -472,6 +516,375 @@
             if (rankList.length === 0) {
                 rankListEmptyP.style.display = 'block';
                 rankListItems.style.display = 'none';
+                return;
+            }
+
+            rankListEmptyP.style.display = 'none';
+            rankListItems.style.display = 'block';
+
+            // --- SORT BY RATING (primary) AND RANK ORDER (secondary) ---
+            rankList.sort((a, b) => b.rating - a.rating || a.rankOrder - b.rankOrder);
+            
+            let currentRatingGroup = -1; // For grouping headers
+
+            rankList.forEach((item, index) => {
+                // item is { schedule: {...}, rating: X, rankOrder: Y }
+                const schedule = item.schedule;
+                const rating = item.rating;
+
+                // --- Add rating group header if new ---
+                if (rating !== currentRatingGroup) {
+                    const header = document.createElement('h3');
+                    header.className = 'rating-group-header';
+                    header.textContent = `${rating} Star${rating > 1 ? 's' : ''}`;
+                    rankListItems.appendChild(header);
+                    currentRatingGroup = rating;
+                }
+
+                const li = document.createElement('li');
+                
+                const id = idKey ? schedule[idKey] : 'Unknown ID';
+                const city = cityKey ? schedule[cityKey] : 'Unknown City';
+
+                // --- Build Star Display (now editable) ---
+                let starsDisplayHTML = `<div class="rank-item-rating editable">`;
+                for (let i = 1; i <= 5; i++) {
+                    starsDisplayHTML += `<button 
+                                            class="star ${i <= rating ? 'filled' : ''}" 
+                                            data-value="${i}" 
+                                            data-id="${id}" 
+                                            aria-label="${i} star"
+                                          >&#9733;</button>`;
+                }
+                starsDisplayHTML += '</div>';
+
+                // --- Determine disabled state for arrows ---
+                // Disabled if first item OR if item above has a different rating
+                const upDisabled = (index === 0 || rankList[index - 1].rating !== rating);
+                // Disabled if last item OR if item below has a different rating
+                const downDisabled = (index === rankList.length - 1 || rankList[index + 1].rating !== rating);
+
+                // 1. Create the header (ID, City, Stars, Controls)
+                let headerHTML = `
+                <div class="rank-item-header">
+                    <div>
+                        <span class="rank-item-name">${id}</span>
+                        <span class="rank-item-city">${city}</span>
+                    </div>
+                    <div class="rank-controls">
+                        <button class="btn-rank" data-index="${index}" aria-label="Move up" ${upDisabled ? 'disabled' : ''}>↑</button>
+                        <button class="btn-rank" data-index="${index}" aria-label="Move down" ${downDisabled ? 'disabled' : ''}>↓</button>
+                        ${starsDisplayHTML}
+                        <button class="btn-danger" data-id="${id}" aria-label="Remove">×</button>
+                    </div>
+                </div>
+                `;
+
+                // 2. Create the details (all the blocks)
+                let detailsHTML = '<div class="rank-item-details">';
+                for (let i = 1; i <= numBlocks; i++) {
+                    const rotation = (schedule[`Block ${i} Rotation`] || '').trim();
+                    const site = (schedule[`Block ${i} Site`] || '').trim();
+                    
+                    detailsHTML += `
+                    <div class="rank-block">
+                        <div class="rank-block-number">Block ${i}</div>
+                        <span class="rotation" style="background-color:${colorFor(rotation)}">${rotation || 'N/A'}</span>
+                        <div class="site">${site || '-'}</div>
+                    </div>
+                    `;
+                }
+                detailsHTML += '</div>';
+
+                // 3. Set the combined HTML
+                li.innerHTML = headerHTML + detailsHTML;
+                rankListItems.appendChild(li);
+            });
+        }
+
+        // Handle clicks for remove button, editable stars, and up/down arrows
+        rankListItems.addEventListener('click', (e) => {
+            const removeButton = e.target.closest('button.btn-danger');
+            const starButton = e.target.closest('button.star');
+            const upButton = e.target.closest('.btn-rank[aria-label="Move up"]');
+            const downButton = e.target.closest('.btn-rank[aria-label="Move down"]');
+
+            if (removeButton) {
+                const schedId = removeButton.dataset.id;
+                const index = rankList.findIndex(item => item.schedule[idKey] === schedId);
+                
+                if (index > -1) {
+                    rankList.splice(index, 1);
+                }
+                
+                renderRankList(); 
+                searchCSV(false); // Update search page stars
+                return; // Stop execution
+            }
+
+            if (starButton) {
+                const rating = parseInt(starButton.dataset.value, 10);
+                const schedId = starButton.dataset.id;
+                const index = rankList.findIndex(item => item.schedule[idKey] === schedId);
+
+                if (index === -1) return; // Should not happen
+
+                let message = '';
+                if (rankList[index].rating === rating) { // Clicking same star
+                    rankList.splice(index, 1); // Remove it (un-rate)
+                    message = 'Rating removed!';
+                } else {
+                    rankList[index].rating = rating; // Update rating
+                    // Leave rankOrder alone, sorting will handle it
+                    message = `Rating updated to ${rating}!`;
+                }
+
+                // Show message on rank list page
+                rankListMessageSpan.textContent = message;
+                rankListMessageSpan.style.color = '#4CAF50';
+                setTimeout(() => rankListMessageSpan.textContent = '', 2000);
+
+                renderRankList(); // Re-render and re-sort
+                searchCSV(false); // Update search page stars
+            }
+            
+            if (upButton) {
+                const index = parseInt(upButton.dataset.index, 10);
+                if (index === 0) return; // Should be disabled, but check anyway
+
+                const itemA = rankList[index];
+                const itemB = rankList[index - 1];
+
+                // Only swap if they have the same rating
+                if (itemA && itemB && itemA.rating === itemB.rating) {
+                    // Swap their rankOrder values
+                    [itemA.rankOrder, itemB.rankOrder] = [itemB.rankOrder, itemA.rankOrder];
+                    renderRankList(); // Re-render to show new order
+                }
+            }
+            
+            if (downButton) {
+                const index = parseInt(downButton.dataset.index, 10);
+                if (index === rankList.length - 1) return; // Should be disabled
+
+                const itemA = rankList[index];
+                const itemB = rankList[index + 1];
+
+                // Only swap if they have the same rating
+                if (itemA && itemB && itemA.rating === itemB.rating) {
+                    // Swap their rankOrder values
+                    [itemA.rankOrder, itemB.rankOrder] = [itemB.rankOrder, itemA.rankOrder];
+                    renderRankList(); // Re-render to show new order
+                }
+            }
+        });
+
+        // Handle adding/updating rating from the results table (Event Delegation)
+        resultDiv.addEventListener('click', (e) => {
+            const target = e.target.closest('.star');
+            if (!target) return;
+
+            const rating = parseInt(target.dataset.value, 10);
+            const schedId = target.dataset.id;
+            
+            // Find the full schedule data.
+            const rowDataString = target.closest('.star-rating-container').dataset.row;
+            let scheduleData;
+            try {
+                scheduleData = JSON.parse(rowDataString.replace(/&apos;/g, "'"));
+            } catch(err) {
+                console.error("Failed to parse row data for rating:", err);
+                return;
+            }
+
+            const index = rankList.findIndex(item => item.schedule[idKey] === schedId);
+            let newRating = 0;
+
+            if (index > -1) { // Item already in list
+                if (rankList[index].rating === rating) { // Clicking same star
+                    rankList.splice(index, 1); // Remove it (un-rate)
+                    newRating = 0;
+                } else {
+                    rankList[index].rating = rating; // Update rating
+                    // Leave rankOrder unchanged
+                    newRating = rating;
+                }
+            } else { // New item
+                // Add new item with a high rankOrder so it goes to the end of its group
+                rankList.push({ schedule: scheduleData, rating: rating, rankOrder: rankList.length });
+                newRating = rating;
+            }
+
+            // Update UI
+            rankCountSpan.textContent = rankList.length;
+            addMessageSpan.textContent = newRating > 0 ? `Rating ${newRating} saved!` : 'Rating removed!';
+            setTimeout(() => addMessageSpan.textContent = '', 2000);
+
+            // Update stars in just this row
+            const starContainer = target.parentElement;
+            starContainer.querySelectorAll('.star').forEach(star => {
+                const starValue = parseInt(star.dataset.value, 10);
+                if (starValue <= newRating) {
+                    star.classList.add('filled');
+                } else {
+                    star.classList.remove('filled');
+                }
+            });
+        });
+
+
+        // Handle Upload CSV Button Click
+        uploadCSVBtn.addEventListener('click', () => {
+            uploadCSVInput.click(); // Trigger hidden file input
+        });
+
+        // Handle File Upload Event
+        uploadCSVInput.addEventListener('change', async (event) => { // Made async
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            // Check if main data is loaded, if not, load it
+            if (allSchedules.length === 0) {
+                rankListMessageSpan.textContent = 'Loading master schedule...';
+                rankListMessageSpan.style.color = '#555'; // Neutral color
+                
+                const success = await loadMasterSchedule();
+                
+                if (!success) {
+                    rankListMessageSpan.textContent = 'Error loading master schedule. Cannot upload.';
+                    rankListMessageSpan.style.color = '#f44336';
+                    setTimeout(() => {
+                        rankListMessageSpan.textContent = '';
+                        rankListMessageSpan.style.color = '#4CAF50';
+                    }, 3000);
+                    event.target.value = null; // Clear file input
+                    return;
+                }
+            }
+
+            // Parse the uploaded CSV
+            Papa.parse(file, {
+                skipEmptyLines: true,
+                complete: (result) => {
+                    try {
+                        const allSchedulesMap = new Map();
+                        allSchedules.forEach(schedule => allSchedulesMap.set(String(schedule[idKey]).trim(), schedule));
+
+                        let dataToProcess = result.data;
+                        if (dataToProcess.length === 0) throw new Error("Uploaded file is empty.");
+                        
+                        // Check for and remove header row
+                        const header = dataToProcess[0].map(h => String(h).toLowerCase().trim());
+                        const idColIndex = header.findIndex(h => h.includes('id'));
+                        const ratingColIndex = header.findIndex(h => h.includes('rating') || h.includes('star'));
+
+                        // Try to find old 'Rank' column for compatibility
+                        const rankColIndex = header.findIndex(h => h === 'rank');
+
+                        if (idColIndex === -1) {
+                             throw new Error('Uploaded CSV must have a "Schedule ID" column.');
+                        }
+                        // Handle files with ratings or just old rank order
+                        const hasRating = ratingColIndex > -1;
+                        const hasRank = rankColIndex > -1;
+
+                        if (!hasRating && !hasRank) {
+                            throw new Error('Uploaded CSV must have "Rating" or "Rank" column.');
+                        }
+                        
+                        dataToProcess = dataToProcess.slice(1); // Remove header
+
+                        const newRankList = [];
+                        const foundIDs = new Set();
+                        let notFoundCount = 0;
+                        let invalidRatingCount = 0;
+
+                        dataToProcess.forEach((row, fileIndex) => {
+                            const id = row[idColIndex] ? String(row[idColIndex]).trim() : null;
+                            
+                            let rating = 0;
+                            let rankOrder = fileIndex; // Default rank order
+
+                            if (hasRating) {
+                                rating = parseInt(row[ratingColIndex], 10);
+                            }
+                            if (hasRank) {
+                                // If no rating, use rank as a placeholder "rating" (e.g., 1, 2, 3...)
+                                // We'll just assign a 1-star rating and use file order
+                                if (!hasRating) {
+                                    rating = 1; // Assign a default 1-star
+                                }
+                                rankOrder = parseInt(row[rankColIndex], 10);
+                                if (isNaN(rankOrder)) rankOrder = fileIndex;
+                            }
+
+
+                            if (!id || (hasRating && (isNaN(rating) || rating < 1 || rating > 5))) {
+                                if (id) invalidRatingCount++; // Count if ID was present but rating wasn't
+                                return; // Skip invalid row
+                            }
+                            
+                            if (allSchedulesMap.has(id) && !foundIDs.has(id)) {
+                                newRankList.push({ 
+                                    schedule: allSchedulesMap.get(id), 
+                                    rating: rating || 1, // Default to 1 star if 0
+                                    rankOrder: rankOrder
+                                });
+                                foundIDs.add(id);
+                            } else if (!allSchedulesMap.has(id)) {
+                                notFoundCount++;
+                            }
+                        });
+
+                        rankList = newRankList;
+                        renderRankList(); // Re-render the list
+
+                        // Show success/status message
+                        let message = `Uploaded ${newRankList.length} items.`;
+                        if (notFoundCount > 0) message += ` (${notFoundCount} IDs not found.)`;
+                        if (invalidRatingCount > 0) message += ` (${invalidRatingCount} invalid ratings.)`;
+                        
+                        rankListMessageSpan.textContent = message;
+                        rankListMessageSpan.style.color = '#4CAF50';
+                        setTimeout(() => rankListMessageSpan.textContent = '', 4000);
+
+                    } catch (err) {
+                        console.error("Error processing uploaded CSV:", err);
+                        rankListMessageSpan.textContent = err.message || 'Error processing file.';
+                        rankListMessageSpan.style.color = '#f44336';
+                        setTimeout(() => {
+                            rankListMessageSpan.textContent = '';
+                            rankListMessageSpan.style.color = '#4CAF50';
+                        }, 3000);
+                    } finally {
+                        event.target.value = null; // Clear file input
+                    }
+                },
+                error: (err) => {
+                    console.error("PapaParse error:", err);
+                    rankListMessageSpan.textContent = 'Failed to read file.';
+                    rankListMessageSpan.style.color = '#f44336';
+                    setTimeout(() => {
+                        rankListMessageSpan.textContent = '';
+                        rankListMessageSpan.style.color = '#4CAF50';
+                    }, 3000);
+                    event.target.value = null; // Clear file input
+                }
+            });
+        });
+
+
+        // Handle Download CSV
+        downloadCSVBtn.addEventListener('click', () => {
+            if (rankList.length === 0) {
+                rankListMessageSpan.textContent = 'List is empty.';
+                rankListMessageSpan.style.color = '#f44336'; // Make it red
+                setTimeout(() => {
+                    rankListMessageSpan.textContent = '';
+                    rankListMessageSpan.style.color = '#4CAF50'; // Reset color
+                }, 3000);
                 return;
             }
 
@@ -602,5 +1015,4 @@
     </script>
 </body>
 </html>
-
 

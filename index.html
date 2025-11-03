@@ -1,3 +1,9 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Jason's Lottery Helper Tool</title>
+
 <h1 class="app-title">Jason's Lottery Helper Tool</h1>
 
 <section class="controls">
@@ -24,41 +30,38 @@
     </select>
   </div>
 
-  <!-- "View Rank List" button added -->
   <button id="searchBtn" class="btn-primary">Search</button>
   <button id="viewRankListBtn" class="btn-secondary">
     View Rank List (<span id="rankCount">0</span>)
   </button>
-  <span id="addMessage"></span> <!-- For "Added!" or "Already in list" messages -->
+  <span id="addMessage"></span>
 </section>
 
-<!-- This 'main' tag now wraps the original search/filter/results sections -->
 <main id="searchSection">
   <section id="filterGrid"></section>
   <section id="result"></section>
 </main>
 
-<!-- New, hidden section for the Rank List -->
 <section id="rankListSection" style="display: none;">
-  <input type="file" id="uploadCSVInput" accept=".csv" style="display: none;"> <!-- Hidden file input -->
+  <input type="file" id="uploadCSVInput" accept=".csv" style="display: none;">
   <div class="rank-list-header">
     <h2 class="app-title">My Rank List</h2>
     <div>
       <button id="backToSearchBtn" class="btn-secondary">← Back to Search</button>
-      <button id="uploadCSVBtn" class="btn-secondary">Upload CSV</button> <!-- Upload button -->
+      <button id="uploadCSVBtn" class="btn-secondary">Upload CSV</button>
       <button id="downloadCSVBtn" class="btn-primary">Download as CSV</button>
       <span id="rankListMessage" class="rank-message"></span>
     </div>
   </div>
   <p id="rankListEmpty" style="text-align: center; display: none;">Your rank list is empty. Go back to search to add schedules.</p>
-  <ol id="rankListItems" class="rank-list-ol"></ol>
+  <div id="groupedRankList"></div>
 </section>
 
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <style>
   body {
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: #f9fafb;
     color: #333;
     margin: 20px;
@@ -86,20 +89,19 @@
     margin-left: 10px;
     font-size: 0.9em;
     color: #4CAF50;
+    font-weight: 500;
   }
   label {
     margin-bottom: 5px;
     font-weight: bold;
     color: #555;
   }
-  .styled-select, .btn-primary, .btn-secondary { /* Added .btn-secondary for consistent sizing */
+  .styled-select, .btn-primary, .btn-secondary {
     padding: 8px 12px;
     border-radius: 6px;
     border: 1px solid #ccc;
     font-size: 1rem;
   }
-
-  /* Style for secondary/toggle buttons */
   .btn-secondary {
     background-color: #555;
     color: white;
@@ -107,221 +109,94 @@
     cursor: pointer;
     transition: background-color 0.2s ease;
   }
-  .btn-secondary:hover {
-    background-color: #333;
-  }
-  /* Style for danger/remove buttons */
+  .btn-secondary:hover { background-color: #333; }
   .btn-danger {
-    background-color: #f44336;
-    color: white;
-    border: none;
-    cursor: pointer;
-    font-size: 0.8rem;
-    padding: 2px 6px;
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
+    background-color: #f44336; color: white; border: none; cursor: pointer;
+    font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; transition: background-color 0.2s ease;
   }
-  .btn-danger:hover {
-    background-color: #d32f2f;
-  }
-  /* Style for small rank-list buttons */
+  .btn-danger:hover { background-color: #d32f2f; }
   .btn-rank {
-    background-color: #f0f0f0;
-    color: #333;
-    border: 1px solid #ccc;
-    cursor: pointer;
-    font-size: 1rem;
-    padding: 0px 6px;
-    border-radius: 4px;
-    margin: 0 2px;
-    line-height: 1.2;
+    background-color: #f0f0f0; color: #333; border: 1px solid #ccc; cursor: pointer;
+    font-size: 1rem; padding: 0px 6px; border-radius: 4px; margin: 0 2px; line-height: 1.2;
   }
-  .btn-rank:hover {
-    background-color: #e0e0e0;
-  }
-  .btn-rank:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
+  .btn-rank:hover { background-color: #e0e0e0; }
+  .btn-rank:disabled { opacity: 0.5; cursor: not-allowed; }
   .btn-primary {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
+    background-color: #4CAF50; color: white; border: none; cursor: pointer; transition: background-color 0.2s ease;
   }
-  .btn-primary:hover {
-    background-color: #45a049;
-  }
+  .btn-primary:hover { background-color: #45a049; }
   table {
-    border-collapse: collapse;
-    margin-top: 1em;
-    width: 100%;
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    border-collapse: collapse; margin-top: 1em; width: 100%; background: white;
+    border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
   }
-  th, td {
-    border-bottom: 1px solid #eee;
-    padding: 8px 10px;
-    text-align: center;
-  }
-  th {
-    background: #f3f4f6;
-    font-weight: 600;
-    color: #374151;
-  }
-  tr:hover {
-    background-color: #f9fafb;
-  }
-  /* Class for the 'Add' button in the results table */
-  .btn-add {
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: #4CAF50;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 50%;
-  }
-  .btn-add:hover {
-    background-color: #e8f5e9;
-  }
-  .btn-add:disabled {
-    color: #ccc;
-    cursor: not-allowed;
-    background: none;
-  }
+  th, td { border-bottom: 1px solid #eee; padding: 8px 10px; text-align: center; }
+  th { background: #f3f4f6; font-weight: 600; color: #374151; }
+  tr:hover { background-color: #f9fafb; }
   .rotation {
-    display: inline-block;
-    padding: 3px 6px;
-    margin-bottom: 4px;
-    border-radius: 4px;
-    color: #fff;
-    font-size: 0.85em;
+    display: inline-block; padding: 3px 6px; margin-bottom: 4px; border-radius: 4px; color: #fff; font-size: 0.85em; font-weight: 500;
   }
-  .site {
-    font-size: 0.8em;
-    color: #555;
-  }
+  .site { font-size: 0.8em; color: #555; }
   .grid-table {
-    border-collapse: collapse;
-    margin: 20px auto;
-    background: white;
-    border-radius: 8px;
-    overflow: hidden;
+    border-collapse: collapse; margin: 20px auto; background: white; border-radius: 8px; overflow: hidden;
     box-shadow: 0 2px 6px rgba(0,0,0,0.1);
   }
-  .grid-table th, .grid-table td {
-    padding: 6px 8px;
-    border-bottom: 1px solid #eee;
-    text-align: center;
-  }
-  #filterGrid strong {
-    display: block;
-    text-align: center;
-    margin-bottom: 10px;
-    font-size: 1.1rem;
-    color: #2c3e50;
-  }
+  .grid-table th, .grid-table td { padding: 6px 8px; border-bottom: 1px solid #eee; text-align: center; }
+  #filterGrid strong { display: block; text-align: center; margin-bottom: 10px; font-size: 1.1rem; color: #2c3e50; }
 
-  /* New Styles for Rank List Section */
+  /* Star Rating */
+  .star-rating {
+    display: flex; flex-direction: row-reverse; justify-content: center; align-items: center; min-width: 150px;
+  }
+  .star-rating input[type="radio"] { display: none; }
+  .star-rating label {
+    font-size: 2rem; color: #ddd; cursor: pointer; padding: 0 2px; margin: 0; transition: color 0.1s ease-in-out;
+  }
+  .star-rating input[type="radio"]:checked ~ label { color: #f39c12; }
+  .star-rating:not(:hover) input[type="radio"]:checked ~ label,
+  .star-rating:hover label { color: #f39c12; }
+  .star-rating label:hover ~ label { color: #ddd; }
+  .star-rating label[for*="-0"] {
+    font-size: 1.2rem; font-weight: bold; color: #ccc; padding-bottom: 4px; margin-right: 5px;
+  }
+  .star-rating input[type="radio"]:checked ~ label[for*="-0"] { color: #ccc; }
+  .star-rating label[for*="-0"]:hover { color: #f44336 !important; }
+
+  /* Rank List Section */
   .rank-list-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 10px;
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;
   }
-  .rank-list-header .rank-message {
-    margin-left: 10px;
-    font-size: 0.9em;
+  .rank-list-header .rank-message { margin-left: 10px; font-size: 0.9em; }
+  .rank-group { margin-bottom: 24px; }
+  .rank-group h2 {
+    font-size: 1.5rem; color: #333; border-bottom: 2px solid #eee; padding-bottom: 8px; margin-bottom: 12px;
   }
+  .rank-group h2.stars-5 { color: #f39c12; }
+  .rank-group h2.stars-4 { color: #d4a02a; }
+  .rank-group h2.stars-3 { color: #b5a342; }
+  .rank-group h2.stars-2 { color: #96a65a; }
+  .rank-group h2.stars-1 { color: #77a972; }
+  .rank-group h2.stars-0 { color: #777; font-size: 1.2rem; }
   .rank-list-ol {
-    list-style-type: decimal;
-    padding-left: 30px;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    padding: 20px;
-    padding-left: 50px; /* Make space for numbers */
-    margin: 0;
+    list-style-type: decimal; padding-left: 30px; background: #fff; border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1); padding: 20px 20px 20px 50px; margin: 0;
   }
-  .rank-list-ol li {
-    padding: 12px 8px;
-    border-bottom: 1px solid #eee;
-    display: block; /* Changed from flex to block */
-    font-size: 1.1rem;
-  }
-  .rank-list-ol li:last-child {
-    border-bottom: none;
-  }
-  .rank-list-ol li .rank-item-name {
-    font-weight: 600;
-    color: #333;
-  }
-  .rank-list-ol li .rank-item-city {
-    font-size: 0.9rem;
-    color: #777;
-    margin-left: 8px;
-  }
-  .rank-list-ol li .rank-controls {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-
-  /* New styles for the expanded rank list view */
-  .rank-item-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px; /* Add some space below header */
-  }
-
+  .rank-list-ol li { padding: 12px 8px; border-bottom: 1px solid #eee; display: block; font-size: 1.1rem; }
+  .rank-list-ol li:last-child { border-bottom: none; }
+  .rank-item-name { font-weight: 600; color: #333; }
+  .rank-item-city { font-size: 0.9rem; color: #777; margin-left: 8px; }
+  .rank-controls { display: flex; align-items: center; gap: 5px; }
+  .rank-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .rank-item-header .styled-select { font-size: 0.9rem; padding: 4px 6px; margin-left: 10px; }
   .rank-item-details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 8px;
-    background-color: #f_f_f; /* Slightly off-white background */
-    border-radius: 4px;
-    border: 1px solid #f0f0f0;
+    display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; background-color: #fdfdfd;
+    border-radius: 4px; border: 1px solid #f0f0f0;
   }
-
   .rank-block {
-    flex: 1; /* Allow blocks to grow and fill space */
-    min-width: 80px; /* Set a min-width for each block */
-    padding: 6px;
-    border: 1px solid #e5e5e5;
-    border-radius: 4px;
-    background: #fff;
-    text-align: center;
-    font-size: 0.8rem; /* Smaller font for detail view */
+    flex: 1; min-width: 80px; padding: 6px; border: 1px solid #e5e5e5; border-radius: 4px; background: #fff; text-align: center; font-size: 0.8rem;
   }
-
-  .rank-block-number {
-    font-weight: bold;
-    font-size: 0.9em;
-    color: #333;
-    margin-bottom: 4px;
-  }
-
-  /* Adjust existing rotation/site styles for this context */
-  .rank-block .rotation {
-    font-size: 0.9em; /* Ensure font size is consistent */
-    padding: 2px 4px;
-  }
-  .rank-block .site {
-    font-size: 0.85em;
-    margin-top: 4px; /* Add space above site name */
-  }
-
-
+  .rank-block-number { font-weight: bold; font-size: 0.9em; color: #333; margin-bottom: 4px; }
+  .rank-block .rotation { font-size: 0.9em; padding: 2px 4px; }
+  .rank-block .site { font-size: 0.85em; margin-top: 4px; }
 </style>
 
 <script>
@@ -332,34 +207,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultDiv = document.getElementById('result');
   const filterGridDiv = document.getElementById('filterGrid');
 
-  // New Rank List elements
+  // Rank List elements
   const searchSection = document.getElementById('searchSection');
   const rankListSection = document.getElementById('rankListSection');
   const viewRankListBtn = document.getElementById('viewRankListBtn');
   const backToSearchBtn = document.getElementById('backToSearchBtn');
   const downloadCSVBtn = document.getElementById('downloadCSVBtn');
-  const uploadCSVBtn = document.getElementById('uploadCSVBtn'); // Get new upload button
-  const uploadCSVInput = document.getElementById('uploadCSVInput'); // Get new file input
-  const rankListItems = document.getElementById('rankListItems');
+  const uploadCSVBtn = document.getElementById('uploadCSVBtn');
+  const uploadCSVInput = document.getElementById('uploadCSVInput');
+  const groupedRankListDiv = document.getElementById('groupedRankList');
   const rankCountSpan = document.getElementById('rankCount');
   const addMessageSpan = document.getElementById('addMessage');
   const rankListEmptyP = document.getElementById('rankListEmpty');
   const rankListMessageSpan = document.getElementById('rankListMessage');
 
-  // Global state for rank list
-  let rankList = [];
-  let allSchedules = []; // Store all schedules from the main CSV
-  // To be populated by CSV parse
+  // Global State
+  let allSchedules = {};
+  let scheduleRatings = {};
+  let groupedLists = { 5: [], 4: [], 3: [], 2: [], 1: [], 0: [] };
   let idKey, cityKey;
 
   const numBlocks = 9;
   const specialties = [
-    'Surgery','Obstetric/Gynecology','Family Medicine',
+    'Surgery','Obstetrics/Gynecology','Family Medicine',
     'Psychiatry','Internal Medicine','Emergency Medicine',
     'Pediatrics','Elective'
   ];
 
-  // Build grid
+  // Build filter grid
   let gridHTML = '<table class="grid-table"><thead><tr><th>Rotation</th>';
   for (let i = 1; i <= numBlocks; i++) gridHTML += `<th>${i}</th>`;
   gridHTML += '</tr></thead><tbody>';
@@ -374,299 +249,337 @@ document.addEventListener('DOMContentLoaded', () => {
   filterGridDiv.innerHTML = `<strong>Allowed Rotations (uncheck to exclude):</strong>${gridHTML}`;
 
   const specialtyColors = {
-    'Surgery':'#9C27B0','Obstetric/Gynecology':'#E91E63',
+    'Surgery':'#9C27B0','Obstetrics/Gynecology':'#E91E63',
     'Family Medicine':'#4CAF50','Psychiatry':'#795548',
     'Internal Medicine':'#2196F3','Emergency Medicine':'#3F51B5',
     'Pediatrics':'#FF9800','Elective':'#9E9E9E'
   };
   const colorFor = s => specialtyColors[s] || '#607D8B';
 
-  // --- New function to load the master schedule ---
-  // This avoids code duplication and can be called from search or upload
+  // Load Master Schedule
   async function loadMasterSchedule() {
-    if (allSchedules.length > 0) return true; // Already loaded
-
+    if (Object.keys(allSchedules).length > 0) return true;
     try {
-      const resp = await fetch('schedules.csv');
+      const resp = await fetch('optimized_schedule.csv');
       const text = await resp.text();
-      const parsed = Papa.parse(text,{
-        header:true, skipEmptyLines:true,
-        transformHeader:h=>h.replace(/^\uFEFF/,'').trim()
+      const parsed = Papa.parse(text, {
+        header: true, skipEmptyLines: true,
+        transformHeader: h => h.replace(/^\uFEFF/, '').trim()
       });
-
-      if(!parsed.data.length) {
+      if (!parsed.data.length) {
         console.error("Master schedule CSV empty or unreadable");
         return false;
       }
-      
-      // Store all data
-      allSchedules = parsed.data;
+      const headers = Object.keys(parsed.data[0]);
+      idKey = headers.find(k => k.trim().toLowerCase() === 'schedule') || headers[0];
+      cityKey = headers.find(k => k.trim().toLowerCase().includes('city')) || 'Dominant City';
 
-      // Detect actual city key dynamically
-      const headers = Object.keys(allSchedules[0]);
-      // Set global keys if not already set
-      if (!cityKey) {
-        cityKey = headers.find(k=>k.trim().toLowerCase().includes('city')) || 'Dominant City';
-      }
-      if (!idKey) {
-        idKey = headers.find(k=>k.trim().toLowerCase().includes('id')) || headers[0];
-      }
-      return true; // Success
+      allSchedules = {};
+      scheduleRatings = {};
+      groupedLists = { 5: [], 4: [], 3: [], 2: [], 1: [], 0: [] };
 
+      parsed.data.forEach(schedule => {
+        const sId = schedule[idKey];
+        if (sId === undefined) return;
+        allSchedules[sId] = schedule;
+        scheduleRatings[sId] = 0;
+        groupedLists[0].push(schedule);
+      });
+      return true;
     } catch (e) {
       console.error("Error loading master schedule:", e);
-      return false; // Failure
+      return false;
     }
   }
 
-
-  // --- View Toggling ---
+  // View Toggling
   function showSection(sectionToShow) {
     if (sectionToShow === 'rank') {
       searchSection.style.display = 'none';
       rankListSection.style.display = 'block';
-      renderRankList(); // Re-render the list every time we show it
+      renderRankList();
     } else {
       searchSection.style.display = 'block';
       rankListSection.style.display = 'none';
+      searchCSV();
     }
   }
-
   viewRankListBtn.addEventListener('click', () => showSection('rank'));
   backToSearchBtn.addEventListener('click', () => showSection('search'));
 
-  // --- Rank List Logic ---
-  function renderRankList() {
-    rankListItems.innerHTML = ''; // Clear existing list
-    rankCountSpan.textContent = rankList.length;
+  // Rating & Grouping
+  function updateScheduleRating(scheduleId, newRating) {
+    newRating = parseInt(newRating, 10);
+    const oldRating = scheduleRatings[scheduleId];
+    if (newRating === oldRating) return;
 
-    if (rankList.length === 0) {
-        rankListEmptyP.style.display = 'block';
-        rankListItems.style.display = 'none';
-        return;
-    }
-
-    rankListEmptyP.style.display = 'none';
-    rankListItems.style.display = 'block';
-
-    rankList.forEach((item, index) => {
-      const li = document.createElement('li');
-      // Ensure keys are defined before trying to access
-      const id = idKey ? item[idKey] : 'Unknown ID';
-      const city = cityKey ? item[cityKey] : 'Unknown City';
-
-      // --- Build the new, detailed HTML for the list item ---
-      
-      // 1. Create the header (ID, City, Controls)
-      let headerHTML = `
-        <div class="rank-item-header">
-          <div>
-            <span class="rank-item-name">${id}</span>
-            <span class="rank-item-city">${city}</span>
-          </div>
-          <div class="rank-controls">
-            <button class="btn-rank" data-index="${index}" ${index === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
-            <button class="btn-rank" data-index="${index}" ${index === rankList.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
-            <button class="btn-danger" data-index="${index}" aria-label="Remove">×</button>
-          </div>
-        </div>
-      `;
-
-      // 2. Create the details (all the blocks)
-      let detailsHTML = '<div class="rank-item-details">';
-      for (let i = 1; i <= numBlocks; i++) {
-        const rotation = (item[`Block ${i} Rotation`] || '').trim();
-        const site = (item[`Block ${i} Site`] || '').trim();
-        
-        detailsHTML += `
-          <div class="rank-block">
-            <div class="rank-block-number">Block ${i}</div>
-            <span class="rotation" style="background-color:${colorFor(rotation)}">${rotation || 'N/A'}</span>
-            <div class="site">${site || '-'}</div>
-          </div>
-        `;
-      }
-      detailsHTML += '</div>';
-
-      // 3. Set the combined HTML
-      li.innerHTML = headerHTML + detailsHTML;
-      rankListItems.appendChild(li);
-    });
-  }
-
-  // Handle clicks for up/down/remove
-  rankListItems.addEventListener('click', (e) => {
-    const target = e.target.closest('button');
-    if (!target) return;
-
-    const index = parseInt(target.dataset.index, 10);
-
-    if (target.classList.contains('btn-danger')) {
-      // Remove
-      rankList.splice(index, 1);
-    } else if (target.getAttribute('aria-label') === 'Move up' && index > 0) {
-      // Move up (swap with previous)
-      [rankList[index - 1], rankList[index]] = [rankList[index], rankList[index - 1]];
-    } else if (target.getAttribute('aria-label') === 'Move down' && index < rankList.length - 1) {
-      // Move down (swap with next)
-      [rankList[index + 1], rankList[index]] = [rankList[index], rankList[index + 1]];
-    }
-
-    renderRankList(); // Re-render the list after modification
-  });
-
-  // Handle adding from the results table (Event Delegation)
-  resultDiv.addEventListener('click', (e) => {
-    const target = e.target.closest('.btn-add');
-    if (!target) return;
-
-    const schedId = target.dataset.id;
-    // Ensure idKey is set before checking
-    if (idKey && rankList.some(item => item[idKey] === schedId)) {
-        addMessageSpan.textContent = 'Already in list!';
-        setTimeout(() => addMessageSpan.textContent = '', 2000);
-        return;
-    }
-
-    try {
-      // Use JSON.parse to turn the string attribute back into an object
-      const rowData = JSON.parse(target.dataset.row);
-      rankList.push(rowData);
-      rankCountSpan.textContent = rankList.length;
-      target.textContent = '✓';
-      target.disabled = true;
-      
-      addMessageSpan.textContent = 'Added!';
-      setTimeout(() => addMessageSpan.textContent = '', 2000);
-    } catch (err) {
-      console.error("Failed to parse row data:", err);
-      addMessageSpan.textContent = 'Error adding item.';
-      setTimeout(() => addMessageSpan.textContent = '', 2000);
-    }
-  });
-
-  // Handle Upload CSV Button Click
-  uploadCSVBtn.addEventListener('click', () => {
-    uploadCSVInput.click(); // Trigger hidden file input
-  });
-
-  // Handle File Upload Event
-  uploadCSVInput.addEventListener('change', async (event) => { // Made async
-    const file = event.target.files[0];
-    if (!file) {
+    const scheduleData = allSchedules[scheduleId];
+    if (!scheduleData) {
+      console.error("No schedule data found for ID:", scheduleId);
       return;
     }
 
-    // Check if main data is loaded, if not, load it
-    if (allSchedules.length === 0) {
-      rankListMessageSpan.textContent = 'Loading master schedule...';
-      rankListMessageSpan.style.color = '#555'; // Neutral color
-      
-      const success = await loadMasterSchedule();
-      
-      if (!success) {
-        rankListMessageSpan.textContent = 'Error loading master schedule. Cannot upload.';
-        rankListMessageSpan.style.color = '#f44336';
-        setTimeout(() => {
-            rankListMessageSpan.textContent = '';
-            rankListMessageSpan.style.color = '#4CAF50';
-        }, 3000);
-        event.target.value = null; // Clear file input
-        return;
-      }
-      // If successful, fall through to the rest of the function
+    if (oldRating !== undefined && groupedLists[oldRating]) {
+      const oldList = groupedLists[oldRating];
+      const oldIndex = oldList.findIndex(s => s[idKey] == scheduleId);
+      if (oldIndex > -1) oldList.splice(oldIndex, 1);
     }
 
-    // Parse the uploaded CSV
+    if (groupedLists[newRating]) {
+      groupedLists[newRating].push(scheduleData);
+    } else {
+      console.error("Invalid new rating:", newRating);
+    }
+
+    scheduleRatings[scheduleId] = newRating;
+
+    const ratedCount = Object.values(scheduleRatings).filter(r => r > 0).length;
+    rankCountSpan.textContent = ratedCount;
+
+    if (rankListSection.style.display === 'block') renderRankList();
+  }
+
+  // Render Rank List
+  function renderRankList() {
+    groupedRankListDiv.innerHTML = '';
+    let totalRatedCount = 0;
+    let hasAnySchedules = false;
+
+    const groupInfo = [
+      { rating: 5, title: '★★★★★ (5 Stars)', class: 'stars-5' },
+      { rating: 4, title: '★★★★☆ (4 Stars)', class: 'stars-4' },
+      { rating: 3, title: '★★★☆☆ (3 Stars)', class: 'stars-3' },
+      { rating: 2, title: '★★☆☆☆ (2 Stars)', class: 'stars-2' },
+      { rating: 1, title: '★☆☆☆☆ (1 Star)', class: 'stars-1' },
+      { rating: 0, title: 'Unrated', class: 'stars-0' },
+    ];
+
+    groupInfo.forEach(group => {
+      const rating = group.rating;
+      const scheduleList = groupedLists[rating];
+
+      if (rating > 0) totalRatedCount += scheduleList.length;
+      if (scheduleList.length > 0) hasAnySchedules = true;
+
+      const groupDiv = document.createElement('div');
+      groupDiv.className = 'rank-group';
+
+      const title = document.createElement('h2');
+      title.textContent = `${group.title} (${scheduleList.length})`;
+      title.className = group.class;
+      groupDiv.appendChild(title);
+
+      if (scheduleList.length === 0) {
+        groupedRankListDiv.appendChild(groupDiv);
+        return;
+      }
+
+      const ol = document.createElement('ol');
+      ol.className = 'rank-list-ol';
+      ol.dataset.rating = rating;
+
+      scheduleList.forEach((item, index) => {
+        const li = document.createElement('li');
+        const id = item[idKey];
+        const city = item[cityKey];
+
+        const headerHTML = `
+          <div class="rank-item-header">
+            <div>
+              <span class="rank-item-name">${id}</span>
+              <span class="rank-item-city">${city ?? ''}</span>
+            </div>
+            <div class="rank-controls">
+              <button class="btn-rank" data-index="${index}" ${index === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
+              <button class="btn-rank" data-index="${index}" ${index === scheduleList.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
+              <select class="styled-select rating-select-rank" data-id="${id}">
+                <option value="5" ${rating == 5 ? 'selected' : ''}>★★★★★</option>
+                <option value="4" ${rating == 4 ? 'selected' : ''}>★★★★☆</option>
+                <option value="3" ${rating == 3 ? 'selected' : ''}>★★★☆☆</option>
+                <option value="2" ${rating == 2 ? 'selected' : ''}>★★☆☆☆</option>
+                <option value="1" ${rating == 1 ? 'selected' : ''}>★☆☆☆☆</option>
+                <option value="0" ${rating == 0 ? 'selected' : ''}>Unrated</option>
+              </select>
+              <button class="btn-danger" data-id="${id}" data-rating="${rating}" aria-label="Remove">×</button>
+            </div>
+          </div>
+        `;
+
+        let detailsHTML = '<div class="rank-item-details">';
+        for (let i = 1; i <= numBlocks; i++) {
+          const rotation = (item[`Block ${i} Rotation`] || '').trim();
+          const site = (item[`Block ${i} Site`] || '').trim();
+          detailsHTML += `
+            <div class="rank-block">
+              <div class="rank-block-number">Block ${i}</div>
+              <span class="rotation" style="background-color:${colorFor(rotation)}">${rotation || 'N/A'}</span>
+              <div class="site">${site || '-'}</div>
+            </div>
+          `;
+        }
+        detailsHTML += '</div>';
+
+        li.innerHTML = headerHTML + detailsHTML;
+        ol.appendChild(li);
+      });
+
+      groupDiv.appendChild(ol);
+      groupedRankListDiv.appendChild(groupDiv);
+    });
+
+    rankCountSpan.textContent = totalRatedCount;
+    rankListEmptyP.style.display = hasAnySchedules ? 'none' : 'block';
+  }
+
+  // Clicks (move/remove) + rating changes inside rank list
+  groupedRankListDiv.addEventListener('change', (e) => {
+    const target = e.target;
+    if (target.classList.contains('rating-select-rank')) {
+      updateScheduleRating(target.dataset.id, target.value);
+    }
+  });
+  groupedRankListDiv.addEventListener('click', (e) => {
+    const button = e.target.closest('button');
+    if (!button) return;
+
+    const ol = button.closest('.rank-list-ol');
+    if (!ol) return;
+
+    const rating = parseInt(ol.dataset.rating, 10);
+    const index = parseInt(button.dataset.index, 10);
+    const list = groupedLists[rating];
+    if (!list) return;
+
+    if (button.classList.contains('btn-danger')) {
+      updateScheduleRating(button.dataset.id, 0);
+    } else if (button.getAttribute('aria-label') === 'Move up' && index > 0) {
+      [list[index - 1], list[index]] = [list[index], list[index - 1]];
+      renderRankList();
+    } else if (button.getAttribute('aria-label') === 'Move down' && index < list.length - 1) {
+      [list[index + 1], list[index]] = [list[index], list[index + 1]];
+      renderRankList();
+    }
+  });
+
+  // Ratings from search table (star radios)
+  resultDiv.addEventListener('input', (e) => {
+    const target = e.target;
+    if (target.name && target.name.startsWith('rating-')) {
+      const scheduleId = target.dataset.id;
+      const newRating = target.value;
+      updateScheduleRating(scheduleId, newRating);
+      addMessageSpan.textContent = newRating > 0 ? `Rated ${newRating} ★!` : 'Unrated!';
+      setTimeout(() => addMessageSpan.textContent = '', 2000);
+    }
+  });
+
+  // Upload CSV
+  uploadCSVBtn.addEventListener('click', () => uploadCSVInput.click());
+  uploadCSVInput.addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (Object.keys(allSchedules).length === 0) {
+      rankListMessageSpan.textContent = 'Loading master schedule...';
+      const success = await loadMasterSchedule();
+      if (!success) {
+        rankListMessageSpan.textContent = 'Error loading master. Cannot upload.';
+        event.target.value = null;
+        return;
+      }
+    }
+
     Papa.parse(file, {
       skipEmptyLines: true,
+      header: true,
+      transformHeader: h => h.replace(/^\uFEFF/, '').trim(),
       complete: (result) => {
         try {
-          const allSchedulesMap = new Map();
-          allSchedules.forEach(schedule => allSchedulesMap.set(String(schedule[idKey]).trim(), schedule));
+          const dataToProcess = result.data;
+          if (!dataToProcess.length) throw new Error("CSV file is empty.");
 
-          let dataToProcess = result.data;
-          
-          // Check for and remove header row
-          if (dataToProcess.length > 0 && String(dataToProcess[0][0]).toLowerCase() === 'rank' && String(dataToProcess[0][1]).toLowerCase().includes('id')) {
-            dataToProcess = dataToProcess.slice(1);
-          }
+          const headers = Object.keys(dataToProcess[0]);
+          const idCol = headers.find(h => h.toLowerCase().includes('id'));
+          const ratingCol = headers.find(h => h.toLowerCase() === 'rating');
+          if (!idCol) throw new Error("Missing an ID column.");
 
-          // Get IDs from column 1 (index 1)
-          const uploadedScheduleIDs = dataToProcess
-            .map(row => row[1] ? String(row[1]).trim() : null)
-            .filter(Boolean);
+          const newRatings = {};
+          const newGroupedLists = { 5: [], 4: [], 3: [], 2: [], 1: [], 0: [] };
+          const allUploadedIds = new Set();
+          let importedCount = 0;
 
-          const newRankList = [];
-          const foundIDs = new Set();
-          let notFoundCount = 0;
+          dataToProcess.forEach(row => {
+            const sId = String(row[idCol] ?? '').trim();
+            if (!sId || !allSchedules[sId]) return;
 
-          uploadedScheduleIDs.forEach(id => {
-            if (allSchedulesMap.has(id) && !foundIDs.has(id)) {
-              newRankList.push(allSchedulesMap.get(id));
-              foundIDs.add(id);
-            } else if (!allSchedulesMap.has(id)) {
-              notFoundCount++;
+            allUploadedIds.add(sId);
+            let rating = 5; // default to 5 if no/invalid rating provided
+            if (ratingCol && row[ratingCol] !== undefined) {
+              const parsed = parseInt(row[ratingCol], 10);
+              rating = (!isNaN(parsed) && parsed >= 1 && parsed <= 5) ? parsed : 5;
             }
+            newRatings[sId] = rating;
+            newGroupedLists[rating].push(allSchedules[sId]);
+            importedCount++;
           });
 
-          rankList = newRankList;
-          renderRankList(); // Re-render the list
-
-          // Show success/status message
-          let message = `Uploaded ${newRankList.length} items.`;
-          if (notFoundCount > 0) {
-            message += ` (${notFoundCount} IDs not found in master list.)`;
+          // Remaining schedules -> Unrated
+          for (const sId in allSchedules) {
+            if (!allUploadedIds.has(sId)) {
+              newRatings[sId] = 0;
+              newGroupedLists[0].push(allSchedules[sId]);
+            }
           }
-          rankListMessageSpan.textContent = message;
+
+          scheduleRatings = newRatings;
+          groupedLists = newGroupedLists;
+          renderRankList();
+
+          rankListMessageSpan.textContent = `Uploaded ${importedCount} items.`;
           rankListMessageSpan.style.color = '#4CAF50';
           setTimeout(() => rankListMessageSpan.textContent = '', 3000);
-
         } catch (err) {
           console.error("Error processing uploaded CSV:", err);
           rankListMessageSpan.textContent = 'Error processing file.';
           rankListMessageSpan.style.color = '#f44336';
-          setTimeout(() => {
-              rankListMessageSpan.textContent = '';
-              rankListMessageSpan.style.color = '#4CAF50';
-          }, 3000);
         } finally {
-          event.target.value = null; // Clear file input
+          event.target.value = null;
         }
       },
       error: (err) => {
         console.error("PapaParse error:", err);
         rankListMessageSpan.textContent = 'Failed to read file.';
         rankListMessageSpan.style.color = '#f44336';
-        setTimeout(() => {
-            rankListMessageSpan.textContent = '';
-            rankListMessageSpan.style.color = '#4CAF50';
-        }, 3000);
-        event.target.value = null; // Clear file input
       }
     });
   });
 
-
-  // Handle Download CSV
+  // Download CSV
   downloadCSVBtn.addEventListener('click', () => {
-    if (rankList.length === 0) {
-      rankListMessageSpan.textContent = 'List is empty.';
-      rankListMessageSpan.style.color = '#f44336'; // Make it red
+    const finalRankedList = [
+      ...groupedLists[5],
+      ...groupedLists[4],
+      ...groupedLists[3],
+      ...groupedLists[2],
+      ...groupedLists[1]
+    ]; // exclude unrated (0)
+
+    if (finalRankedList.length === 0) {
+      rankListMessageSpan.textContent = 'List is empty (no rated schedules).';
+      rankListMessageSpan.style.color = '#f44336';
       setTimeout(() => {
-          rankListMessageSpan.textContent = '';
-          rankListMessageSpan.style.color = '#4CAF50'; // Reset color
+        rankListMessageSpan.textContent = '';
+        rankListMessageSpan.style.color = '#4CAF50';
       }, 3000);
       return;
     }
 
-    // Modified CSV content: Rank and Schedule ID only
-    let csvContent = "Rank,Schedule ID\n";
-    rankList.forEach((item, index) => {
+    let csvContent = "Rank,Schedule ID,Rating\n";
+    finalRankedList.forEach((item, index) => {
       const rank = index + 1;
-      const id = (idKey && item[idKey]) ? item[idKey] : '';
-      // Ensure quotes are handled within CSV fields
-      csvContent += `${rank},"${id.replace(/"/g, '""')}"\n`;
+      const id = item[idKey];
+      const rating = scheduleRatings[id] || 0;
+      csvContent += `${rank},"${String(id).replace(/"/g, '""')}",${rating}\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -680,47 +593,39 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.removeChild(link);
   });
 
-
+  // Search
   async function searchCSV() {
     const choice = dropdown.value.trim();
     const mode = modeSelect.value;
 
-    // collect unchecked
     const excluded = {};
-    filterGridDiv.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb=>{
+    filterGridDiv.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb => {
       const rot = cb.dataset.rotation, blk = cb.dataset.block;
-      if(!excluded[blk]) excluded[blk]=new Set(); excluded[blk].add(rot);
+      if (!excluded[blk]) excluded[blk] = new Set();
+      excluded[blk].add(rot);
     });
-    const rotationFilterActive = Object.keys(excluded).length>0;
+    const rotationFilterActive = Object.keys(excluded).length > 0;
 
     try {
-      // Ensure master schedule is loaded
-      if (allSchedules.length === 0) {
-        rankListMessageSpan.textContent = 'Loading master schedule...';
-        rankListMessageSpan.style.color = '#555';
+      if (Object.keys(allSchedules).length === 0) {
+        resultDiv.innerHTML = '<strong>Loading master schedule...</strong>';
         const success = await loadMasterSchedule();
-        rankListMessageSpan.textContent = ''; // Clear message
         if (!success) {
-          resultDiv.textContent='Error reading CSV file.';
+          resultDiv.textContent = 'Error reading CSV file.';
           return;
         }
       }
-      
-      // Master schedule is loaded (either now or previously),
-      // allSchedules, idKey, and cityKey are set.
-      // Now, just do the filtering and rendering.
 
-      const filtered = allSchedules.filter(r=>{
-        // Allow empty city choice to show all
-        const cityMatch = !choice || (r[cityKey]||'').trim()===choice;
-        let rotationAllowed=true;
-        if(rotationFilterActive){
-          for(let i=1;i<=numBlocks;i++){
-            const rotation=(r[`Block ${i} Rotation`]||'').trim();
-            if(excluded[i]&&excluded[i].has(rotation)){ rotationAllowed=false; break;}
+      const filtered = Object.values(allSchedules).filter(r => {
+        const cityMatch = !choice || (r[cityKey] || '').trim() === choice;
+        let rotationAllowed = true;
+        if (rotationFilterActive) {
+          for (let i = 1; i <= numBlocks; i++) {
+            const rotation = (r[`Block ${i} Rotation`] || '').trim();
+            if (excluded[i] && excluded[i].has(rotation)) { rotationAllowed = false; break; }
           }
         }
-        switch(mode){
+        switch (mode) {
           case 'city': return cityMatch;
           case 'rotation': return rotationAllowed;
           case 'and': return cityMatch && rotationAllowed;
@@ -728,51 +633,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      if(!filtered.length){ resultDiv.textContent='No matches found.'; return;}
+      if (!filtered.length) { resultDiv.textContent = 'No matches found.'; return; }
 
-      const head = Array.from({length:numBlocks},(_,i)=>`<th>Block ${i+1}</th>`).join('');
-      // Modified header to include 'Add' and 'Schedule'
-      let html=`<table><thead><tr><th>Add</th><th>Schedule</th>${head}</tr></thead><tbody>`;
-      filtered.forEach(r=>{
-        const sched=(r[idKey]||'').toString().trim();
-        // Check if this item is already in the rank list to set button state
-        const isInRankList = rankList.some(item => item[idKey] === sched);
+      const head = Array.from({ length: numBlocks }, (_, i) => `<th>Block ${i + 1}</th>`).join('');
+      let html = `<table><thead><tr><th>Rate</th><th>Schedule</th>${head}</tr></thead><tbody>`;
 
-        const cells=[];
-        for(let i=1;i<=numBlocks;i++){
-          const rotation=(r[`Block ${i} Rotation`]||'').trim();
-          const site=(r[`Block ${i} Site`]||'').trim();
+      filtered.forEach(r => {
+        const schedId = (r[idKey] || '').toString().trim();
+        const currentRating = scheduleRatings[schedId] || 0;
+
+        const cells = [];
+        for (let i = 1; i <= numBlocks; i++) {
+          const rotation = (r[`Block ${i} Rotation`] || '').trim();
+          const site = (r[`Block ${i} Site`] || '').trim();
           cells.push(
             `<td>
               <span class="rotation" style="background-color:${colorFor(rotation)}">${rotation}</span>
               <div class="site">${site}</div>
-             </td>`
+            </td>`
           );
         }
-        // Add the '+' button column
-        // We serialize the entire row object 'r' into the data-row attribute
-        // We must escape single quotes in the JSON string for the HTML attribute
-        const rowDataString = JSON.stringify(r).replace(/'/g, "&apos;");
-        const addButton = `<td>
-            <button 
-              class="btn-add" 
-              data-id='${sched}' 
-              data-row='${rowDataString}'
-              ${isInRankList ? 'disabled' : ''}
-            >
-              ${isInRankList ? '✓' : '+'}
-            </button>
-          </td>`;
-        html+=`<tr>${addButton}<td>${sched}</td>${cells.join('')}</tr>`;
+
+        const radioName = `rating-${schedId}`;
+        const ratingCell = `
+          <td>
+            <div class="star-rating">
+              <input type="radio" id="${radioName}-0" name="${radioName}" value="0" ${currentRating == 0 ? 'checked' : ''} data-id="${schedId}">
+              <label for="${radioName}-0" title="Unrated">○</label>
+              <input type="radio" id="${radioName}-1" name="${radioName}" value="1" ${currentRating == 1 ? 'checked' : ''} data-id="${schedId}">
+              <label for="${radioName}-1" title="1 star">★</label>
+              <input type="radio" id="${radioName}-2" name="${radioName}" value="2" ${currentRating == 2 ? 'checked' : ''} data-id="${schedId}">
+              <label for="${radioName}-2" title="2 stars">★</label>
+              <input type="radio" id="${radioName}-3" name="${radioName}" value="3" ${currentRating == 3 ? 'checked' : ''} data-id="${schedId}">
+              <label for="${radioName}-3" title="3 stars">★</label>
+              <input type="radio" id="${radioName}-4" name="${radioName}" value="4" ${currentRating == 4 ? 'checked' : ''} data-id="${schedId}">
+              <label for="${radioName}-4" title="4 stars">★</label>
+              <input type="radio" id="${radioName}-5" name="${radioName}" value="5" ${currentRating == 5 ? 'checked' : ''} data-id="${schedId}">
+              <label for="${radioName}-5" title="5 stars">★</label>
+            </div>
+          </td>
+        `;
+
+        html += `<tr>${ratingCell}<td>${schedId}</td>${cells.join('')}</tr>`;
       });
-      html+='</tbody></table>';
-      resultDiv.innerHTML=`<strong>Results:</strong><br>${html}`;
-    } catch(e){
+
+      html += '</tbody></table>';
+      resultDiv.innerHTML = `<strong>Results:</strong><br>${html}`;
+    } catch (e) {
       console.error(e);
-      resultDiv.textContent='Error reading CSV file.';
+      resultDiv.textContent = 'Error reading CSV file.';
     }
   }
 
+  // Initial load
   searchBtn.addEventListener('click', searchCSV);
+  loadMasterSchedule().then(() => { searchCSV(); });
 });
 </script>
+</head>
+</html>

@@ -519,7 +519,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Add to new list
     if (groupedLists[newRating]) {
       groupedLists[newRating].push(scheduleData);
-D
     } else {
       console.error("Invalid new rating:", newRating);
     }
@@ -730,7 +729,6 @@ D
           const idCol = headers.find(h => h.toLowerCase().includes('id'));
           const ratingCol = headers.find(h => h.toLowerCase() === 'rating');
 
-V
         // New state to build
           const newRatings = {};
           const newGroupedLists = { 5: [], 4: [], 3: [], 2: [], 1: [], 0: [] };
@@ -741,7 +739,6 @@ V
             const sId = String(row[idCol]).trim();
             if (!sId || !allSchedules[sId]) {
               return; // Skip if ID is missing or not in master list
-NB
           }
             allUploadedIds.add(sId);
             
@@ -751,10 +748,9 @@ NB
               if (isNaN(rating) || rating < 1 || rating > 5) {
                 rating = 5; // Default to 5 if rating is invalid
               }
-      _
+      
         } else {
               rating = 5; // Fallback for 2-column CSV
-s
           }
 
             newRatings[sId] = rating;
@@ -767,7 +763,6 @@ s
             if (!allUploadedIds.has(sId)) {
               newRatings[sId] = 0;
               newGroupedLists[0].push(allSchedules[sId]);
-Note
         }
           }
 
@@ -778,7 +773,6 @@ Note
 
           rankListMessageSpan.textContent = `Uploaded ${importedCount} items.`;
           rankListMessageSpan.style.color = '#4CAF50';
-    Why
       setTimeout(() => rankListMessageSpan.textContent = '', 3000);
 
         } catch (err) {
@@ -791,8 +785,7 @@ Note
       },
       error: (err) => {
         console.error("PapaParse error:", err);
-ind
-      rankListMessageSpan.textContent = 'Failed to read file.';
+        rankListMessageSpan.textContent = 'Failed to read file.';
         rankListMessageSpan.style.color = '#f44336';
       }
     });
@@ -802,7 +795,6 @@ ind
   // --- Handle Download CSV (Updated) ---
   downloadCSVBtn.addEventListener('click', () => {
     // Flatten the grouped lists into a final rank order
-  Answer
     const finalRankedList = [
       ...groupedLists[5],
       ...groupedLists[4],
@@ -813,7 +805,6 @@ ind
 
     if (finalRankedList.length === 0) {
       rankListMessageSpan.textContent = 'List is empty (no rated schedules).';
-IndentationError
       rankListMessageSpan.style.color = '#f44336'; 
       setTimeout(() => {
           rankListMessageSpan.textContent = '';
@@ -824,12 +815,10 @@ IndentationError
 
     // Build the new 3-column CSV format
     let csvContent = "Rank,Schedule ID,Rating\n";
-ind
     finalRankedList.forEach((item, index) => {
       const rank = index + 1;
       const id = item[idKey];
       const rating = scheduleRatings[id] || 0; // Get the rating
-Section
     csvContent += `${rank},"${String(id).replace(/"/g, '""')}",${rating}\n`;
     });
 

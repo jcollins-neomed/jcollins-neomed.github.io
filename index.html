@@ -590,5 +590,62 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   searchBtn.addEventListener('click', searchCSV);
+
+    // --------------------------
+  // CSV Download and Upload
+  // --------------------------
+
+  // Download current rank list as CSV
+  downloadCSVBtn.addEventListener('click', () => {
+    if (rankList.length === 0) {
+      rankListMessageSpan.textContent = 'No items to download.';
+      setTimeout(() => (rankListMessageSpan.textContent = ''), 2000);
+      return;
+    }
+
+    const csv = Papa.unparse(rankList);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'my_rank_list.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    rankListMessageSpan.textContent = 'CSV downloaded!';
+    setTimeout(() => (rankListMessageSpan.textContent = ''), 2000);
+  });
+
+  // Upload a previously saved rank list
+  uploadCSVBtn.addEventListener('click', () => {
+    uploadCSVInput.click();
+  });
+
+  uploadCSVInput.addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        if (!results.data || results.data.length === 0) {
+          rankListMessageSpan.textContent = 'No valid data found.';
+          return;
+        }
+        rankList = results.data;
+        rankCountSpan.textContent = rankList.length;
+        renderRankList();
+        rankListMessageSpan.textContent = 'CSV uploaded successfully!';
+        setTimeout(() => (rankListMessageSpan.textContent = ''), 2000);
+      },
+      error: () => {
+        rankListMessageSpan.textContent = 'Error reading CSV file.';
+        setTimeout(() => (rankListMessageSpan.textContent = ''), 2000);
+      }
+    });
+  });
 });
 </script>

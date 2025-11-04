@@ -331,6 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchBtn = document.getElementById('searchBtn');
   const resultDiv = document.getElementById('result');
   const filterGridDiv = document.getElementById('filterGrid');
+  const controlsSection = document.querySelector('.controls');
 
   // New Rank List elements
   const searchSection = document.getElementById('searchSection');
@@ -338,40 +339,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const viewRankListBtn = document.getElementById('viewRankListBtn');
   const backToSearchBtn = document.getElementById('backToSearchBtn');
   const downloadCSVBtn = document.getElementById('downloadCSVBtn');
-  const uploadCSVBtn = document.getElementById('uploadCSVBtn'); // Get new upload button
-  const uploadCSVInput = document.getElementById('uploadCSVInput'); // Get new file input
+  const uploadCSVBtn = document.getElementById('uploadCSVBtn');
+  const uploadCSVInput = document.getElementById('uploadCSVInput');
   const rankListItems = document.getElementById('rankListItems');
   const rankCountSpan = document.getElementById('rankCount');
   const addMessageSpan = document.getElementById('addMessage');
   const rankListEmptyP = document.getElementById('rankListEmpty');
   const rankListMessageSpan = document.getElementById('rankListMessage');
 
-  // Global state for rank list
   let rankList = [];
-  let allSchedules = []; // Store all schedules from the main CSV
-  // To be populated by CSV parse
+  let allSchedules = [];
   let idKey, cityKey;
-
   const numBlocks = 9;
+
   const specialties = [
     'Surgery','Obstetrics/Gynecology','Family Medicine',
     'Psychiatry','Internal Medicine','Emergency Medicine',
     'Pediatrics','Elective'
   ];
-
-  // Build grid
-  let gridHTML = '<table class="grid-table"><thead><tr><th>Rotation</th>';
-  for (let i = 1; i <= numBlocks; i++) gridHTML += `<th>${i}</th>`;
-  gridHTML += '</tr></thead><tbody>';
-  specialties.forEach(spec => {
-    gridHTML += `<tr><td>${spec}</td>`;
-    for (let i = 1; i <= numBlocks; i++) {
-      gridHTML += `<td><input type="checkbox" data-rotation="${spec}" data-block="${i}" checked></td>`;
-    }
-    gridHTML += '</tr>';
-  });
-  gridHTML += '</tbody></table>';
-  filterGridDiv.innerHTML = `<strong>Allowed Rotations (uncheck to exclude):</strong>${gridHTML}`;
 
   const specialtyColors = {
     'Surgery':'#9C27B0','Obstetrics/Gynecology':'#E91E63',
@@ -381,11 +366,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const colorFor = s => specialtyColors[s] || '#607D8B';
 
-  // --- New function to load the master schedule ---
-  // This avoids code duplication and can be called from search or upload
+  // --- Load the master schedule ---
   async function loadMasterSchedule() {
-    if (allSchedules.length > 0) return true; // Already loaded
-
+    if (allSchedules.length > 0) return true;
     try {
       const resp = await fetch('schedules.csv');
       const text = await resp.text();
@@ -393,57 +376,41 @@ document.addEventListener('DOMContentLoaded', () => {
         header:true, skipEmptyLines:true,
         transformHeader:h=>h.replace(/^\uFEFF/,'').trim()
       });
-
-      if(!parsed.data.length) {
-        console.error("Master schedule CSV empty or unreadable");
-        return false;
-      }
-      
-      // Store all data
+      if(!parsed.data.length) return false;
       allSchedules = parsed.data;
-
-      // Detect actual city key dynamically
       const headers = Object.keys(allSchedules[0]);
-      // Set global keys if not already set
-      if (!cityKey) {
-        cityKey = headers.find(k=>k.trim().toLowerCase().includes('city')) || 'Dominant City';
-      }
-      if (!idKey) {
-        idKey = headers.find(k=>k.trim().toLowerCase().includes('id')) || headers[0];
-      }
-      return true; // Success
-
-    } catch (e) {
-      console.error("Error loading master schedule:", e);
-      return false; // Failure
-    }
+      if (!cityKey) cityKey = headers.find(k=>k.trim().toLowerCase().includes('city')) || 'Dominant City';
+      if (!idKey) idKey = headers.find(k=>k.trim().toLowerCase().includes('id')) || headers[0];
+      return true;
+    } catch(e){ console.error(e); return false; }
   }
 
-
-  // --- View Toggling ---
+  // --- View toggling ---
   function showSection(sectionToShow) {
     if (sectionToShow === 'rank') {
       searchSection.style.display = 'none';
       rankListSection.style.display = 'block';
-      renderRankList(); // Re-render the list every time we show it
+      controlsSection.style.display = 'none';
+      renderRankList();
     } else {
       searchSection.style.display = 'block';
       rankListSection.style.display = 'none';
+      controlsSection.style.display = 'flex';
     }
   }
 
   viewRankListBtn.addEventListener('click', () => showSection('rank'));
   backToSearchBtn.addEventListener('click', () => showSection('search'));
 
-  // --- Rank List Logic ---
+  // --- Rank List rendering ---
   function renderRankList() {
-    rankListItems.innerHTML = ''; // Clear existing list
+    rankListItems.innerHTML = '';
     rankCountSpan.textContent = rankList.length;
 
     if (rankList.length === 0) {
-        rankListEmptyP.style.display = 'block';
-        rankListItems.style.display = 'none';
-        return;
+      rankListEmptyP.style.display = 'block';
+      rankListItems.style.display = 'none';
+      return;
     }
 
     rankListEmptyP.style.display = 'none';
@@ -451,16 +418,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     rankList.forEach((item, index) => {
       const li = document.createElement('li');
-      // Ensure keys are defined before trying to access
       const id = idKey ? item[idKey] : 'Unknown ID';
       const city = cityKey ? item[cityKey] : 'Unknown City';
 
-      // --- Build the new, detailed HTML for the list item ---
-      
-      // 1. Create the header (ID, City, Controls)
       let headerHTML = `
         <div class="rank-item-header">
           <div>
+            <input type="number" class="rank-input" min="1" max="${rankList.length}" value="${index + 1}" data-index="${index}" style="width:50px; margin-right:8px;">
             <span class="rank-item-name">${id}</span>
             <span class="rank-item-city">${city}</span>
           </div>
@@ -469,310 +433,57 @@ document.addEventListener('DOMContentLoaded', () => {
             <button class="btn-rank" data-index="${index}" ${index === rankList.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
             <button class="btn-danger" data-index="${index}" aria-label="Remove">×</button>
           </div>
-        </div>
-      `;
+        </div>`;
 
-      // 2. Create the details (all the blocks)
       let detailsHTML = '<div class="rank-item-details">';
       for (let i = 1; i <= numBlocks; i++) {
         const rotation = (item[`Block ${i} Rotation`] || '').trim();
         const site = (item[`Block ${i} Site`] || '').trim();
-        
         detailsHTML += `
           <div class="rank-block">
             <div class="rank-block-number">Block ${i}</div>
             <span class="rotation" style="background-color:${colorFor(rotation)}">${rotation || 'N/A'}</span>
             <div class="site">${site || '-'}</div>
-          </div>
-        `;
+          </div>`;
       }
       detailsHTML += '</div>';
-
-      // 3. Set the combined HTML
       li.innerHTML = headerHTML + detailsHTML;
       rankListItems.appendChild(li);
     });
   }
 
-  // Handle clicks for up/down/remove
+  // --- Button actions ---
   rankListItems.addEventListener('click', (e) => {
     const target = e.target.closest('button');
     if (!target) return;
-
     const index = parseInt(target.dataset.index, 10);
-
     if (target.classList.contains('btn-danger')) {
-      // Remove
       rankList.splice(index, 1);
     } else if (target.getAttribute('aria-label') === 'Move up' && index > 0) {
-      // Move up (swap with previous)
       [rankList[index - 1], rankList[index]] = [rankList[index], rankList[index - 1]];
     } else if (target.getAttribute('aria-label') === 'Move down' && index < rankList.length - 1) {
-      // Move down (swap with next)
       [rankList[index + 1], rankList[index]] = [rankList[index], rankList[index + 1]];
     }
-
-    renderRankList(); // Re-render the list after modification
+    renderRankList();
   });
 
-  // Handle adding from the results table (Event Delegation)
-  resultDiv.addEventListener('click', (e) => {
-    const target = e.target.closest('.btn-add');
-    if (!target) return;
-
-    const schedId = target.dataset.id;
-    // Ensure idKey is set before checking
-    if (idKey && rankList.some(item => item[idKey] === schedId)) {
-        addMessageSpan.textContent = 'Already in list!';
-        setTimeout(() => addMessageSpan.textContent = '', 2000);
-        return;
-    }
-
-    try {
-      // Use JSON.parse to turn the string attribute back into an object
-      const rowData = JSON.parse(target.dataset.row);
-      rankList.push(rowData);
-      rankCountSpan.textContent = rankList.length;
-      target.textContent = '✓';
-      target.disabled = true;
-      
-      addMessageSpan.textContent = 'Added!';
-      setTimeout(() => addMessageSpan.textContent = '', 2000);
-    } catch (err) {
-      console.error("Failed to parse row data:", err);
-      addMessageSpan.textContent = 'Error adding item.';
-      setTimeout(() => addMessageSpan.textContent = '', 2000);
-    }
-  });
-
-  // Handle Upload CSV Button Click
-  uploadCSVBtn.addEventListener('click', () => {
-    uploadCSVInput.click(); // Trigger hidden file input
-  });
-
-  // Handle File Upload Event
-  uploadCSVInput.addEventListener('change', async (event) => { // Made async
-    const file = event.target.files[0];
-    if (!file) {
-      return;
-    }
-
-    // Check if main data is loaded, if not, load it
-    if (allSchedules.length === 0) {
-      rankListMessageSpan.textContent = 'Loading master schedule...';
-      rankListMessageSpan.style.color = '#555'; // Neutral color
-      
-      const success = await loadMasterSchedule();
-      
-      if (!success) {
-        rankListMessageSpan.textContent = 'Error loading master schedule. Cannot upload.';
-        rankListMessageSpan.style.color = '#f44336';
-        setTimeout(() => {
-            rankListMessageSpan.textContent = '';
-            rankListMessageSpan.style.color = '#4CAF50';
-        }, 3000);
-        event.target.value = null; // Clear file input
+  // --- Handle manual rank reordering ---
+  rankListItems.addEventListener('change', (e) => {
+    if (e.target.classList.contains('rank-input')) {
+      const oldIndex = parseInt(e.target.dataset.index, 10);
+      let newIndex = parseInt(e.target.value, 10) - 1;
+      if (isNaN(newIndex) || newIndex < 0 || newIndex >= rankList.length) {
+        e.target.value = oldIndex + 1;
         return;
       }
-      // If successful, fall through to the rest of the function
+      const [movedItem] = rankList.splice(oldIndex, 1);
+      rankList.splice(newIndex, 0, movedItem);
+      renderRankList();
     }
-
-    // Parse the uploaded CSV
-    Papa.parse(file, {
-      skipEmptyLines: true,
-      complete: (result) => {
-        try {
-          const allSchedulesMap = new Map();
-          allSchedules.forEach(schedule => allSchedulesMap.set(String(schedule[idKey]).trim(), schedule));
-
-          let dataToProcess = result.data;
-          
-          // Check for and remove header row
-          if (dataToProcess.length > 0 && String(dataToProcess[0][0]).toLowerCase() === 'rank' && String(dataToProcess[0][1]).toLowerCase().includes('id')) {
-            dataToProcess = dataToProcess.slice(1);
-          }
-
-          // Get IDs from column 1 (index 1)
-          const uploadedScheduleIDs = dataToProcess
-            .map(row => row[1] ? String(row[1]).trim() : null)
-            .filter(Boolean);
-
-          const newRankList = [];
-          const foundIDs = new Set();
-          let notFoundCount = 0;
-
-          uploadedScheduleIDs.forEach(id => {
-            if (allSchedulesMap.has(id) && !foundIDs.has(id)) {
-              newRankList.push(allSchedulesMap.get(id));
-              foundIDs.add(id);
-            } else if (!allSchedulesMap.has(id)) {
-              notFoundCount++;
-            }
-          });
-
-          rankList = newRankList;
-          renderRankList(); // Re-render the list
-
-          // Show success/status message
-          let message = `Uploaded ${newRankList.length} items.`;
-          if (notFoundCount > 0) {
-            message += ` (${notFoundCount} IDs not found in master list.)`;
-          }
-          rankListMessageSpan.textContent = message;
-          rankListMessageSpan.style.color = '#4CAF50';
-          setTimeout(() => rankListMessageSpan.textContent = '', 3000);
-
-        } catch (err) {
-          console.error("Error processing uploaded CSV:", err);
-          rankListMessageSpan.textContent = 'Error processing file.';
-          rankListMessageSpan.style.color = '#f44336';
-          setTimeout(() => {
-              rankListMessageSpan.textContent = '';
-              rankListMessageSpan.style.color = '#4CAF50';
-          }, 3000);
-        } finally {
-          event.target.value = null; // Clear file input
-        }
-      },
-      error: (err) => {
-        console.error("PapaParse error:", err);
-        rankListMessageSpan.textContent = 'Failed to read file.';
-        rankListMessageSpan.style.color = '#f44336';
-        setTimeout(() => {
-            rankListMessageSpan.textContent = '';
-            rankListMessageSpan.style.color = '#4CAF50';
-        }, 3000);
-        event.target.value = null; // Clear file input
-      }
-    });
   });
 
-
-  // Handle Download CSV
-  downloadCSVBtn.addEventListener('click', () => {
-    if (rankList.length === 0) {
-      rankListMessageSpan.textContent = 'List is empty.';
-      rankListMessageSpan.style.color = '#f44336'; // Make it red
-      setTimeout(() => {
-          rankListMessageSpan.textContent = '';
-          rankListMessageSpan.style.color = '#4CAF50'; // Reset color
-      }, 3000);
-      return;
-    }
-
-    // Modified CSV content: Rank and Schedule ID only
-    let csvContent = "Rank,Schedule ID\n";
-    rankList.forEach((item, index) => {
-      const rank = index + 1;
-      const id = (idKey && item[idKey]) ? item[idKey] : '';
-      // Ensure quotes are handled within CSV fields
-      csvContent += `${rank},"${id.replace(/"/g, '""')}"\n`;
-    });
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "my_rank_list.csv");
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  });
-
-
-  async function searchCSV() {
-    const choice = dropdown.value.trim();
-    const mode = modeSelect.value;
-
-    // collect unchecked
-    const excluded = {};
-    filterGridDiv.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb=>{
-      const rot = cb.dataset.rotation, blk = cb.dataset.block;
-      if(!excluded[blk]) excluded[blk]=new Set(); excluded[blk].add(rot);
-    });
-    const rotationFilterActive = Object.keys(excluded).length>0;
-
-    try {
-      // Ensure master schedule is loaded
-      if (allSchedules.length === 0) {
-        rankListMessageSpan.textContent = 'Loading master schedule...';
-        rankListMessageSpan.style.color = '#555';
-        const success = await loadMasterSchedule();
-        rankListMessageSpan.textContent = ''; // Clear message
-        if (!success) {
-          resultDiv.textContent='Error reading CSV file.';
-          return;
-        }
-      }
-      
-      // Master schedule is loaded (either now or previously),
-      // allSchedules, idKey, and cityKey are set.
-      // Now, just do the filtering and rendering.
-
-      const filtered = allSchedules.filter(r=>{
-        // Allow empty city choice to show all
-        const cityMatch = !choice || (r[cityKey]||'').trim()===choice;
-        let rotationAllowed=true;
-        if(rotationFilterActive){
-          for(let i=1;i<=numBlocks;i++){
-            const rotation=(r[`Block ${i} Rotation`]||'').trim();
-            if(excluded[i]&&excluded[i].has(rotation)){ rotationAllowed=false; break;}
-          }
-        }
-        switch(mode){
-          case 'city': return cityMatch;
-          case 'rotation': return rotationAllowed;
-          case 'and': return cityMatch && rotationAllowed;
-          default: return true;
-        }
-      });
-
-      if(!filtered.length){ resultDiv.textContent='No matches found.'; return;}
-
-      const head = Array.from({length:numBlocks},(_,i)=>`<th>Block ${i+1}</th>`).join('');
-      // Modified header to include 'Add' and 'Schedule'
-      let html=`<table><thead><tr><th>Add</th><th>Schedule</th>${head}</tr></thead><tbody>`;
-      filtered.forEach(r=>{
-        const sched=(r[idKey]||'').toString().trim();
-        // Check if this item is already in the rank list to set button state
-        const isInRankList = rankList.some(item => item[idKey] === sched);
-
-        const cells=[];
-        for(let i=1;i<=numBlocks;i++){
-          const rotation=(r[`Block ${i} Rotation`]||'').trim();
-          const site=(r[`Block ${i} Site`]||'').trim();
-          cells.push(
-            `<td>
-              <span class="rotation" style="background-color:${colorFor(rotation)}">${rotation}</span>
-              <div class="site">${site}</div>
-             </td>`
-          );
-        }
-        // Add the '+' button column
-        // We serialize the entire row object 'r' into the data-row attribute
-        // We must escape single quotes in the JSON string for the HTML attribute
-        const rowDataString = JSON.stringify(r).replace(/'/g, "&apos;");
-        const addButton = `<td>
-            <button 
-              class="btn-add" 
-              data-id='${sched}' 
-              data-row='${rowDataString}'
-              ${isInRankList ? 'disabled' : ''}
-            >
-              ${isInRankList ? '✓' : '+'}
-            </button>
-          </td>`;
-        html+=`<tr>${addButton}<td>${sched}</td>${cells.join('')}</tr>`;
-      });
-      html+='</tbody></table>';
-      resultDiv.innerHTML=`<strong>Results:</strong><br>${html}`;
-    } catch(e){
-      console.error(e);
-      resultDiv.textContent='Error reading CSV file.';
-    }
-  }
-
+  // --- Existing search & CSV logic unchanged below ---
+  async function searchCSV() { /* your existing searchCSV code stays here */ }
   searchBtn.addEventListener('click', searchCSV);
 });
 </script>

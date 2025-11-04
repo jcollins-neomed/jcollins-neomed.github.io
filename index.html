@@ -38,7 +38,7 @@
   <section id="result"></section>
 </main>
 
-<meta name="viewport" content="width=device-width, initial-scale=0.8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <!-- New, hidden section for the Rank List -->
 <section id="rankListSection" style="display: none;">
@@ -334,6 +334,12 @@
       -moz-appearance: textfield; /* For Firefox */
     }
 
+  table {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  display: block;
+}
 
 </style>
 
@@ -630,10 +636,6 @@ downloadCSVBtn.addEventListener('click', () => {
   uploadCSVBtn.addEventListener('click', () => {
     uploadCSVInput.click();
   });
-
-uploadCSVBtn.addEventListener('click', () => {
-  uploadCSVInput.click();
-});
 
 uploadCSVInput.addEventListener('change', async (event) => {
   const file = event.target.files[0];

@@ -333,7 +333,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const filterGridDiv = document.getElementById('filterGrid');
   const controlsSection = document.querySelector('.controls');
 
-  // New Rank List elements
   const searchSection = document.getElementById('searchSection');
   const rankListSection = document.getElementById('rankListSection');
   const viewRankListBtn = document.getElementById('viewRankListBtn');
@@ -350,13 +349,27 @@ document.addEventListener('DOMContentLoaded', () => {
   let rankList = [];
   let allSchedules = [];
   let idKey, cityKey;
-  const numBlocks = 9;
 
+  const numBlocks = 9;
   const specialties = [
     'Surgery','Obstetrics/Gynecology','Family Medicine',
     'Psychiatry','Internal Medicine','Emergency Medicine',
     'Pediatrics','Elective'
   ];
+
+  // Build grid
+  let gridHTML = '<table class="grid-table"><thead><tr><th>Rotation</th>';
+  for (let i = 1; i <= numBlocks; i++) gridHTML += `<th>${i}</th>`;
+  gridHTML += '</tr></thead><tbody>';
+  specialties.forEach(spec => {
+    gridHTML += `<tr><td>${spec}</td>`;
+    for (let i = 1; i <= numBlocks; i++) {
+      gridHTML += `<td><input type="checkbox" data-rotation="${spec}" data-block="${i}" checked></td>`;
+    }
+    gridHTML += '</tr>';
+  });
+  gridHTML += '</tbody></table>';
+  filterGridDiv.innerHTML = `<strong>Allowed Rotations (uncheck to exclude):</strong>${gridHTML}`;
 
   const specialtyColors = {
     'Surgery':'#9C27B0','Obstetrics/Gynecology':'#E91E63',
@@ -366,7 +379,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const colorFor = s => specialtyColors[s] || '#607D8B';
 
-  // --- Load the master schedule ---
   async function loadMasterSchedule() {
     if (allSchedules.length > 0) return true;
     try {
@@ -379,13 +391,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if(!parsed.data.length) return false;
       allSchedules = parsed.data;
       const headers = Object.keys(allSchedules[0]);
-      if (!cityKey) cityKey = headers.find(k=>k.trim().toLowerCase().includes('city')) || 'Dominant City';
-      if (!idKey) idKey = headers.find(k=>k.trim().toLowerCase().includes('id')) || headers[0];
+      if (!cityKey) cityKey = headers.find(k=>k.toLowerCase().includes('city')) || 'Dominant City';
+      if (!idKey) idKey = headers.find(k=>k.toLowerCase().includes('id')) || headers[0];
       return true;
-    } catch(e){ console.error(e); return false; }
+    } catch { return false; }
   }
 
-  // --- View toggling ---
   function showSection(sectionToShow) {
     if (sectionToShow === 'rank') {
       searchSection.style.display = 'none';
@@ -402,7 +413,6 @@ document.addEventListener('DOMContentLoaded', () => {
   viewRankListBtn.addEventListener('click', () => showSection('rank'));
   backToSearchBtn.addEventListener('click', () => showSection('search'));
 
-  // --- Rank List rendering ---
   function renderRankList() {
     rankListItems.innerHTML = '';
     rankCountSpan.textContent = rankList.length;
@@ -447,16 +457,17 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>`;
       }
       detailsHTML += '</div>';
+
       li.innerHTML = headerHTML + detailsHTML;
       rankListItems.appendChild(li);
     });
   }
 
-  // --- Button actions ---
   rankListItems.addEventListener('click', (e) => {
     const target = e.target.closest('button');
     if (!target) return;
     const index = parseInt(target.dataset.index, 10);
+
     if (target.classList.contains('btn-danger')) {
       rankList.splice(index, 1);
     } else if (target.getAttribute('aria-label') === 'Move up' && index > 0) {
@@ -467,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRankList();
   });
 
-  // --- Handle manual rank reordering ---
+  // handle manual input reorder
   rankListItems.addEventListener('change', (e) => {
     if (e.target.classList.contains('rank-input')) {
       const oldIndex = parseInt(e.target.dataset.index, 10);
@@ -482,8 +493,91 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- Existing search & CSV logic unchanged below ---
-  async function searchCSV() { /* your existing searchCSV code stays here */ }
+  resultDiv.addEventListener('click', (e) => {
+    const target = e.target.closest('.btn-add');
+    if (!target) return;
+    const schedId = target.dataset.id;
+    if (idKey && rankList.some(item => item[idKey] === schedId)) {
+      addMessageSpan.textContent = 'Already in list!';
+      setTimeout(() => addMessageSpan.textContent = '', 2000);
+      return;
+    }
+    try {
+      const rowData = JSON.parse(target.dataset.row);
+      rankList.push(rowData);
+      rankCountSpan.textContent = rankList.length;
+      target.textContent = '✓';
+      target.disabled = true;
+      addMessageSpan.textContent = 'Added!';
+      setTimeout(() => addMessageSpan.textContent = '', 2000);
+    } catch {
+      addMessageSpan.textContent = 'Error adding item.';
+      setTimeout(() => addMessageSpan.textContent = '', 2000);
+    }
+  });
+
+  async function searchCSV() {
+    const choice = dropdown.value.trim();
+    const mode = modeSelect.value;
+
+    const excluded = {};
+    filterGridDiv.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb => {
+      const rot = cb.dataset.rotation, blk = cb.dataset.block;
+      if (!excluded[blk]) excluded[blk] = new Set();
+      excluded[blk].add(rot);
+    });
+    const rotationFilterActive = Object.keys(excluded).length > 0;
+
+    try {
+      if (allSchedules.length === 0) {
+        const success = await loadMasterSchedule();
+        if (!success) {
+          resultDiv.textContent = 'Error reading CSV file.';
+          return;
+        }
+      }
+
+      const filtered = allSchedules.filter(r => {
+        const cityMatch = !choice || (r[cityKey] || '').trim() === choice;
+        let rotationAllowed = true;
+        if (rotationFilterActive) {
+          for (let i = 1; i <= numBlocks; i++) {
+            const rotation = (r[`Block ${i} Rotation`] || '').trim();
+            if (excluded[i] && excluded[i].has(rotation)) { rotationAllowed = false; break; }
+          }
+        }
+        switch (mode) {
+          case 'city': return cityMatch;
+          case 'rotation': return rotationAllowed;
+          case 'and': return cityMatch && rotationAllowed;
+          default: return true;
+        }
+      });
+
+      if (!filtered.length) { resultDiv.textContent = 'No matches found.'; return; }
+
+      const head = Array.from({length:numBlocks},(_,i)=>`<th>Block ${i+1}</th>`).join('');
+      let html=`<table><thead><tr><th>Add</th><th>Schedule</th>${head}</tr></thead><tbody>`;
+      filtered.forEach(r => {
+        const sched = (r[idKey] || '').toString().trim();
+        const isInRankList = rankList.some(item => item[idKey] === sched);
+        const cells = [];
+        for (let i = 1; i <= numBlocks; i++) {
+          const rotation = (r[`Block ${i} Rotation`] || '').trim();
+          const site = (r[`Block ${i} Site`] || '').trim();
+          cells.push(`<td><span class="rotation" style="background-color:${colorFor(rotation)}">${rotation}</span><div class="site">${site}</div></td>`);
+        }
+        const rowDataString = JSON.stringify(r).replace(/'/g, "&apos;");
+        const addButton = `<td><button class="btn-add" data-id='${sched}' data-row='${rowDataString}' ${isInRankList ? 'disabled' : ''}>${isInRankList ? '✓' : '+'}</button></td>`;
+        html += `<tr>${addButton}<td>${sched}</td>${cells.join('')}</tr>`;
+      });
+      html += '</tbody></table>';
+      resultDiv.innerHTML = `<strong>Results:</strong><br>${html}`;
+    } catch {
+      resultDiv.textContent = 'Error reading CSV file.';
+    }
+  }
+
   searchBtn.addEventListener('click', searchCSV);
 });
 </script>

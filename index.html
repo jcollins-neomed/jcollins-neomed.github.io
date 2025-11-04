@@ -38,7 +38,7 @@
   <section id="result"></section>
 </main>
 
-<meta name="viewport" content="width=device-width, initial-scale=0.9">
+<meta name="viewport" content="width=device-width, initial-scale=0.8">
 
 <!-- New, hidden section for the Rank List -->
 <section id="rankListSection" style="display: none;">
@@ -593,7 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   searchBtn.addEventListener('click', searchCSV);
 
-    // --------------------------
+  // --------------------------
   // CSV Download and Upload
   // --------------------------
 
@@ -631,29 +631,75 @@ downloadCSVBtn.addEventListener('click', () => {
     uploadCSVInput.click();
   });
 
-  uploadCSVInput.addEventListener('change', (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+uploadCSVBtn.addEventListener('click', () => {
+  uploadCSVInput.click();
+});
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        if (!results.data || results.data.length === 0) {
-          rankListMessageSpan.textContent = 'No valid data found.';
-          return;
-        }
-        rankList = results.data;
+uploadCSVInput.addEventListener('change', async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Make sure master schedule is available
+  if (allSchedules.length === 0) {
+    rankListMessageSpan.textContent = 'Loading master schedule...';
+    const ok = await loadMasterSchedule();
+    if (!ok) {
+      rankListMessageSpan.textContent = 'Error loading master schedule. Cannot upload.';
+      setTimeout(() => (rankListMessageSpan.textContent = ''), 2500);
+      event.target.value = null;
+      return;
+    }
+    rankListMessageSpan.textContent = '';
+  }
+
+  Papa.parse(file, {
+    header: true,           // your CSV has headers: Rank,Schedule ID
+    skipEmptyLines: true,
+    complete: (result) => {
+      try {
+        // Build ID → full-row map from master
+        const idMap = new Map();
+        allSchedules.forEach(s => idMap.set(String(s[idKey]).trim(), s));
+
+        // Pull IDs from the uploaded CSV's "Schedule ID" column (header or position-safe)
+        const rows = result.data;
+        const ids = rows
+          .map(r => (r['Schedule ID'] ?? r['schedule id'] ?? r[Object.keys(r)[1]] ?? '').toString().trim())
+          .filter(Boolean);
+
+        const newRankList = [];
+        let notFound = 0;
+        const seen = new Set();
+
+        ids.forEach(id => {
+          if (idMap.has(id) && !seen.has(id)) {
+            newRankList.push(idMap.get(id));
+            seen.add(id);
+          } else if (!idMap.has(id)) {
+            notFound++;
+          }
+        });
+
+        rankList = newRankList;
         rankCountSpan.textContent = rankList.length;
         renderRankList();
-        rankListMessageSpan.textContent = 'CSV uploaded successfully!';
-        setTimeout(() => (rankListMessageSpan.textContent = ''), 2000);
-      },
-      error: () => {
-        rankListMessageSpan.textContent = 'Error reading CSV file.';
-        setTimeout(() => (rankListMessageSpan.textContent = ''), 2000);
+
+        rankListMessageSpan.textContent =
+          `Uploaded ${rankList.length} item(s)` + (notFound ? ` (${notFound} ID(s) not in master).` : '.');
+        setTimeout(() => (rankListMessageSpan.textContent = ''), 3000);
+      } catch (e) {
+        rankListMessageSpan.textContent = 'Error processing file.';
+        setTimeout(() => (rankListMessageSpan.textContent = ''), 2500);
+      } finally {
+        event.target.value = null;
       }
-    });
+    },
+    error: () => {
+      rankListMessageSpan.textContent = 'Failed to read file.';
+      setTimeout(() => (rankListMessageSpan.textContent = ''), 2500);
+      event.target.value = null;
+    }
   });
+});
 });
 </script>

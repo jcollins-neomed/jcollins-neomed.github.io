@@ -38,6 +38,8 @@
   <section id="result"></section>
 </main>
 
+<meta name="viewport" content="width=device-width, initial-scale=0.9">
+
 <!-- New, hidden section for the Rank List -->
 <section id="rankListSection" style="display: none;">
   <input type="file" id="uploadCSVInput" accept=".csv" style="display: none;"> <!-- Hidden file input -->
@@ -596,27 +598,33 @@ document.addEventListener('DOMContentLoaded', () => {
   // --------------------------
 
   // Download current rank list as CSV
-  downloadCSVBtn.addEventListener('click', () => {
-    if (rankList.length === 0) {
-      rankListMessageSpan.textContent = 'No items to download.';
-      setTimeout(() => (rankListMessageSpan.textContent = ''), 2000);
-      return;
-    }
-
-    const csv = Papa.unparse(rankList);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'my_rank_list.csv';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    rankListMessageSpan.textContent = 'CSV downloaded!';
+downloadCSVBtn.addEventListener('click', () => {
+  if (rankList.length === 0) {
+    rankListMessageSpan.textContent = 'No items to download.';
     setTimeout(() => (rankListMessageSpan.textContent = ''), 2000);
+    return;
+  }
+
+  // Build minimal CSV: Rank | Schedule ID
+  let csvContent = "Rank,Schedule ID\n";
+  rankList.forEach((item, index) => {
+    const id = (idKey && item[idKey]) ? item[idKey] : '';
+    csvContent += `${index + 1},"${id.replace(/"/g, '""')}"\n`;
   });
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'my_rank_list.csv';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  rankListMessageSpan.textContent = 'CSV downloaded!';
+  setTimeout(() => (rankListMessageSpan.textContent = ''), 2000);
+});
 
   // Upload a previously saved rank list
   uploadCSVBtn.addEventListener('click', () => {

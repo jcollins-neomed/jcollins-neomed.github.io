@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>NEOMED M3 Lottery Helper Tool</title>
+  <title>NEOMED M3 Lottery Tool</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
@@ -53,6 +53,10 @@
       border: none;
       cursor: pointer;
       transition: background-color 0.2s ease;
+      text-decoration: none; /* For anchor tags acting as buttons */
+      display: inline-block;
+      line-height: normal;
+      text-align: center;
     }
     .btn-secondary:hover {
       background-color: #333;
@@ -292,9 +296,8 @@
     }
   </style>
 
-  <!-- CSV parser for schedules.csv -->
+  <!-- External Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <!-- SheetJS for Excel read/write -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -311,7 +314,6 @@
       <option value="Western Cleveland">Western Cleveland</option>
       <option value="Youngstown">Youngstown</option>
       <option value="Columbus">Columbus</option>
-      <option value="Rootstown">Rootstown</option>
       <option value="Canton">Canton</option>
       <option value="Cincinnati">Cincinnati</option>
     </select>
@@ -327,9 +329,17 @@
   </div>
 
   <button id="searchBtn" class="btn-primary">Search</button>
+  
   <button id="viewRankListBtn" class="btn-secondary">
     View Rank List (<span id="rankCount">0</span>)
   </button>
+  
+  <a href="https://www.google.com/maps/d/viewer?mid=1f8UN2kqrRxwkvB3JdoBt6D4huC1UOUk&usp=sharing" 
+     target="_blank" 
+     class="btn-secondary">
+     View Map
+  </a>
+
   <span id="addMessage"></span>
 </section>
 
@@ -338,7 +348,7 @@
   <section id="result"></section>
 </main>
 
-<!-- Hidden Excel upload input -->
+<!-- Rank List and Excel Operations Section -->
 <section id="rankListSection" style="display: none;">
   <input type="file" id="uploadCSVInput" accept=".xlsx,.xls" style="display: none;">
 
@@ -359,6 +369,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  // DOM Elements
   const dropdown = document.getElementById('dropdown');
   const modeSelect = document.getElementById('mode');
   const searchBtn = document.getElementById('searchBtn');
@@ -379,6 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const rankListEmptyP = document.getElementById('rankListEmpty');
   const rankListMessageSpan = document.getElementById('rankListMessage');
 
+  // State
   let rankList = [];
   let allSchedules = [];
   let idKey, cityKey;
@@ -390,7 +402,10 @@ document.addEventListener('DOMContentLoaded', () => {
     'Pediatrics','Elective'
   ];
 
-  // Build rotation/block grid
+  /**
+   * Initialize Grid Construction
+   * Generates a table for filtering specific blocks/rotations.
+   */
   let gridHTML = '<table class="grid-table"><thead><tr><th>Rotation</th>';
   for (let i = 1; i <= numBlocks; i++) gridHTML += `<th>${i}</th>`;
   gridHTML += '</tr></thead><tbody>';
@@ -412,6 +427,11 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const colorFor = s => specialtyColors[s] || '#607D8B';
 
+  /**
+   * Asynchronously loads the master schedule CSV.
+   * Parses content using PapaParse and detects header columns.
+   * @returns {Promise<boolean>} Success status
+   */
   async function loadMasterSchedule() {
     if (allSchedules.length > 0) return true;
     try {
@@ -434,6 +454,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  /**
+   * Toggles visibility between Search and Rank List sections.
+   * @param {string} sectionToShow - 'rank' or 'search'
+   */
   function showSection(sectionToShow) {
     if (sectionToShow === 'rank') {
       searchSection.style.display = 'none';
@@ -450,6 +474,10 @@ document.addEventListener('DOMContentLoaded', () => {
   viewRankListBtn.addEventListener('click', () => showSection('rank'));
   backToSearchBtn.addEventListener('click', () => showSection('search'));
 
+  /**
+   * Renders the current rank list into the DOM.
+   * Handles empty state messaging and list generation.
+   */
   function renderRankList() {
     rankListItems.innerHTML = '';
     rankCountSpan.textContent = rankList.length;
@@ -506,6 +534,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  /**
+   * Event Listener: Rank List Actions
+   * Handles delegation for move up, move down, and delete buttons.
+   */
   rankListItems.addEventListener('click', (e) => {
     const target = e.target.closest('button');
     if (!target) return;
@@ -521,7 +553,10 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRankList();
   });
 
-  // manual rank number input reordering
+  /**
+   * Event Listener: Manual Input Reordering
+   * Handles changes to the rank number input field.
+   */
   rankListItems.addEventListener('change', (e) => {
     if (!e.target.classList.contains('rank-input')) return;
     const oldIndex = parseInt(e.target.dataset.index, 10);
@@ -535,6 +570,10 @@ document.addEventListener('DOMContentLoaded', () => {
     renderRankList();
   });
 
+  /**
+   * Event Listener: Search Result Selection
+   * Handles adding a schedule from the search results to the rank list.
+   */
   resultDiv.addEventListener('click', (e) => {
     const target = e.target.closest('.btn-add');
     if (!target) return;
@@ -558,10 +597,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  /**
+   * Core Logic: Search and Filter
+   * Filters the master schedule based on City, Rotation Grid, and Filter Mode.
+   */
   async function searchCSV() {
     const choice = dropdown.value.trim();
     const mode = modeSelect.value;
 
+    // Collect excluded rotations from the grid
     const excluded = {};
     filterGridDiv.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb => {
       const rot = cb.dataset.rotation;
@@ -632,9 +676,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   searchBtn.addEventListener('click', searchCSV);
 
-  // --------------------------
-  // Excel Download
-  // --------------------------
+  /**
+   * Excel Download Handler
+   * Exports the current rank list to an .xlsx file using SheetJS.
+   */
   downloadCSVBtn.addEventListener('click', () => {
     if (rankList.length === 0) {
       rankListMessageSpan.textContent = 'No items to download.';
@@ -642,7 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Simple sheet: Rank | Schedule ID
+    // Construct data set: Rank | Schedule ID
     const data = [['Rank', 'Schedule ID']];
     rankList.forEach((item, index) => {
       const id = (idKey && item[idKey]) ? String(item[idKey]) : '';
@@ -658,18 +703,23 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => (rankListMessageSpan.textContent = ''), 2000);
   });
 
-  // --------------------------
-  // Excel Upload
-  // --------------------------
+  /**
+   * Excel Upload Handler
+   * Trigger file input click.
+   */
   uploadCSVBtn.addEventListener('click', () => {
     uploadCSVInput.click();
   });
 
+  /**
+   * Excel Processing Logic
+   * Reads an uploaded .xlsx file and attempts to match IDs to the master schedule.
+   */
   uploadCSVInput.addEventListener('change', async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Ensure master schedule is loaded
+    // Validate master schedule presence
     if (allSchedules.length === 0) {
       rankListMessageSpan.textContent = 'Loading master schedule...';
       const ok = await loadMasterSchedule();
@@ -697,14 +747,14 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
-        // Figure out which column is "Schedule ID"
+        // Identify Schedule ID column
         const headers = Object.keys(rows[0]);
         const idColName =
           headers.find(h => h.toLowerCase().includes('schedule')) ||
           headers[1] ||
           headers[0];
 
-        // Build master map
+        // Create a map for O(1) lookups
         const idMap = new Map();
         allSchedules.forEach(s => idMap.set(String(s[idKey]).trim(), s));
 
